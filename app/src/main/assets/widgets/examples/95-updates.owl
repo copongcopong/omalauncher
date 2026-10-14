@@ -1,8 +1,8 @@
 widget "updates" {
   page: 4
   order: 2
-  size: 3x3
-  minSize: 2x2
+  size: 6x3
+  minSize: 4x2
 
   // Syncs a private copy of the package databases in /tmp (what checkupdates does, without
   // fakeroot), so the real ones stay untouched and pacman's lock is never taken.

@@ -1,8 +1,8 @@
 widget "volume" {
   page: 3
   order: 5
-  size: 6x1
-  minSize: 4x1
+  size: 12x1
+  minSize: 8x1
 
   meta { owl: 4; description: "The phone's media volume as a slider, with a mute button."; version: "1.0"; license: "MIT"; category: "system" }
 

@@ -110,8 +110,8 @@ fun fixDependenciesCommand(
 fun agentWidget(agent: Agent) =
     """
     widget "${agent.bin}" {
-      size: 6x6
-      minSize: 3x4
+      size: 12x6
+      minSize: 6x4
       padding: 0
 
       meta { owl: 2; description: "${agent.name} in a terminal on the home screen" }

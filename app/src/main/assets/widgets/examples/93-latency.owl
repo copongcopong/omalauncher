@@ -1,8 +1,8 @@
 widget "latency" {
   page: 3
   order: 4
-  size: 6x2
-  minSize: 3x2
+  size: 12x2
+  minSize: 6x2
 
   requires { pacman: ["curl"] }
 

@@ -19,7 +19,7 @@ DATA=/data/data/$PKG
 BACKUP=/data/local/tmp/collage-backup.tar
 
 # Theme, then the widgets on its home screen in placement order: the launcher puts each in the
-# first free spot, six columns and ten rows on the Pixel 9a profile.
+# first free spot, twelve columns and ten rows on the Pixel 9a profile.
 SCENES=(
   "tokyo-night       analog-clock today forecast hacker-news"
   "kanagawa          today fetch forecast koi-pond"

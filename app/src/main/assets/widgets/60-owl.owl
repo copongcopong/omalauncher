@@ -2,8 +2,8 @@ widget "owl" {
   meta { owl: 3; description: "A pixel owl to look after. Tap to hatch it, feed it and pet it; it sleeps at night and dances to your music"; version: "1.0"; license: "MIT"; category: "fun" }
   page: 2
   order: 1
-  size: 3x3
-  minSize: 2x2
+  size: 6x3
+  minSize: 4x2
 
   // A Tamagotchi in theme colors. Its moods come from real things: the hour
   // (it sleeps from 23 to 7), when it was last fed (it gets hungry after 8 h),
@@ -257,8 +257,8 @@ widget "owl" {
       color: muted
       align: center
       maxLines: 1
-      // A 2-column tile fits about 16 letters.
-      text: cols != null && cols < 3 ?
+      // A 4-column tile fits about 16 letters.
+      text: cols != null && cols < 6 ?
         (mood == "egg" ? "tap to hatch"
         : mood == "asleep" ? "zzz · day ${day}"
         : mood == "hungry" ? "tap to feed"

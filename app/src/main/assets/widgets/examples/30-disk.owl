@@ -1,8 +1,8 @@
 widget "disk" {
   page: 1
   order: 3
-  size: 3x2
-  minSize: 2x2
+  size: 6x2
+  minSize: 4x2
 
   requires { pacman: ["dua-cli"] }
 

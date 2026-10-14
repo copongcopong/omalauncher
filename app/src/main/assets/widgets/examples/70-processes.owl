@@ -1,8 +1,8 @@
 widget "processes" {
   page: 2
   order: 3
-  size: 3x5
-  minSize: 3x2
+  size: 6x5
+  minSize: 6x2
 
   requires { pacman: ["procps-ng", "btop"] }
 

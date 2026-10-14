@@ -2,8 +2,8 @@ widget "koi pond" {
   meta { description: "A pixel-art koi pond in your theme's colors. Tap the water to feed the koi"; version: "1.2"; license: "MIT"; category: "fun" }
   page: 1
   order: 6
-  size: 6x3
-  minSize: 2x2
+  size: 12x3
+  minSize: 4x2
   padding: 0
 
   // Pixel-art koi in theme colors. A Canvas keeps nothing between frames, so

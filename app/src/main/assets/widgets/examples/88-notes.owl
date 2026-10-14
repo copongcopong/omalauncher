@@ -1,8 +1,8 @@
 widget "notes" {
   page: 3
   order: 3
-  size: 3x4
-  minSize: 2x2
+  size: 6x4
+  minSize: 4x2
 
   meta { owl: 4; description: "Quick notes typed on the home screen; tap a note to remove it."; version: "1.0"; license: "MIT"; category: "productivity" }
 

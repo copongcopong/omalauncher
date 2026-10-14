@@ -66,7 +66,7 @@ class Review(
             null -> warnings += "no category: the store lists it under \"other\" (meta { category: \"news\" })"
             !in Catalog.CATEGORIES -> errors += "category should be one of ${Catalog.CATEGORIES.joinToString(", ")} (got \"$category\")"
         }
-        if (p.size == null) warnings += "no size: set size: 3x2 so it's placed at the size you designed it for"
+        if (p.size == null) warnings += "no size: set size: 6x2 so it's placed at the size you designed it for"
         // Shared links warn about these; the store doesn't take them: what they run can change after review.
         val unquoted = p.commands.filter { UNQUOTED.containsMatchIn(it) }
         for (c in unquoted) {

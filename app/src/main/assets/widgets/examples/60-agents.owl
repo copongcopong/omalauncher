@@ -1,8 +1,8 @@
 widget "agents" {
   page: 2
   order: 2
-  size: 3x5
-  minSize: 3x3
+  size: 6x5
+  minSize: 6x3
 
   source installed = cmd("for a in claude opencode codex grok crush; do command -v $a >/dev/null && printf '%s ' $a; done") every 5m
 

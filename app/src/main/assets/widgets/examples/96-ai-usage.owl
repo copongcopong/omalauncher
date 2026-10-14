@@ -1,8 +1,8 @@
 widget "ai usage" {
   page: 4
   order: 3
-  size: 6x3
-  minSize: 3x2
+  size: 12x3
+  minSize: 6x2
 
   requires { pacman: ["jq", "procps-ng", "findutils"] }
 

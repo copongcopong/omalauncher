@@ -1,8 +1,8 @@
 widget "memory" {
   page: 1
   order: 2
-  size: 3x4
-  minSize: 2x2
+  size: 6x4
+  minSize: 4x2
 
   requires { pacman: ["procps-ng", "gawk", "btop"] }
 

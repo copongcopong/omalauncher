@@ -1,8 +1,8 @@
 widget "analog clock" {
   page: 3
   order: 1
-  size: 3x3
-  minSize: 2x2
+  size: 6x3
+  minSize: 4x2
 
   source now = clock every 1s
   let h = num(fmtTime(now, "H"))

@@ -1,8 +1,8 @@
 widget "battery" {
   page: 1
   order: 4
-  size: 3x2
-  minSize: 3x2
+  size: 6x2
+  minSize: 6x2
 
   source bat = android.battery every 60s
   let low = bat.level < 20

@@ -19,8 +19,8 @@ data class Cell(
     fun overlaps(o: Cell) = x < o.right && o.x < right && y < o.bottom && o.y < bottom
 }
 
-/** Columns of the home grid. Saved with the layout, so changing it rescales saved cells rather than scrambling them. */
-const val GRID_COLUMNS = 6
+/** Columns of the home grid. 12, so a widget can span an unfolded foldable's inner screen; saved with the layout, so changing it rescales saved cells rather than scrambling them. */
+const val GRID_COLUMNS = 12
 
 /**
  * Where each widget and pinned app sits on the home grid, keyed by file name

@@ -1,8 +1,8 @@
 widget "today" {
   page: 1
   order: 1
-  size: 3x3
-  minSize: 3x2
+  size: 6x3
+  minSize: 6x2
   meta { description: "The date and the weather where you are, by IP or a city you type. Tap it for the next 24 hours, three days, wind, UV, sun and moon"; version: "1.1"; license: "MIT"; category: "world"; owl: 5 }
 
   source now = clock every 1m

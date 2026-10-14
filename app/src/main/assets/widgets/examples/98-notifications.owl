@@ -1,8 +1,8 @@
 widget "notifications" {
   page: 3
   order: 4
-  size: 6x4
-  minSize: 3x2
+  size: 12x4
+  minSize: 6x2
 
   meta { owl: 4; description: "The phone's notifications: tap one to open it, x to clear it."; version: "1.0"; license: "MIT"; category: "productivity" }
 

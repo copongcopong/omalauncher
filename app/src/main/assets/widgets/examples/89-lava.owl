@@ -2,8 +2,8 @@ widget "lava lamp" {
   meta { description: "A pixel lava lamp in your theme's colors. Tap it for another wax color"; version: "1.0"; license: "MIT"; category: "fun" }
   page: 2
   order: 2
-  size: 3x3
-  minSize: 1x2
+  size: 6x3
+  minSize: 2x2
   padding: 0
 
   // Wax and its glow, picked by tapping.

@@ -2,8 +2,6 @@ package dev.omalauncher.ui
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.platform.LocalWindowInfo
 import android.app.WallpaperManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.snapshotFlow
@@ -67,18 +65,14 @@ fun HomeScreen(
     val arrange = remember { Arrange() }
     // One empty page always waits after the last one, to drop tiles on or pin apps to. Pages only exist
     // while they hold something, so it becomes a real page once used and a new empty one follows.
-    // Unfolded, pages show in pairs: the pager counts pairs, and an odd last page gets an empty partner.
-    val per = if (showsTwoPages(LocalWindowInfo.current.containerSize)) 2 else 1
     val pageNumbers =
-        engine.pages
-            .let { if (engine.itemsOn(it.last()).isEmpty()) it else it + (it.last() + 1) }
-            .let { if (it.size % per == 0) it else it + (it.last() + 1) }
-    val pager = rememberPagerState { pageNumbers.size / per }
+        engine.pages.let { if (engine.itemsOn(it.last()).isEmpty()) it else it + (it.last() + 1) }
+    val pager = rememberPagerState { pageNumbers.size }
     // A tile dropped on another page: show that page once the page list has caught up.
     var showPage by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(showPage, pageNumbers) {
         val i = showPage?.let(pageNumbers::indexOf) ?: return@LaunchedEffect
-        if (i >= 0) pager.scrollToPage(i / per)
+        if (i >= 0) pager.scrollToPage(i)
         showPage = null
     }
     var menuFor by remember { mutableStateOf<HomeItem?>(null) }
@@ -100,17 +94,9 @@ fun HomeScreen(
             }
         }
     }
-    // Folding or unfolding keeps the page that was showing: unfolded, the pair it's in; folded, the left one of the pair.
-    var shownPer by remember { mutableIntStateOf(per) }
-    LaunchedEffect(per) {
-        if (per == shownPer) return@LaunchedEffect
-        val i = pageNumbers.indexOf(state.currentPage)
-        shownPer = per
-        if (i >= 0) pager.scrollToPage(i / per)
-    }
-    // The drawer pins apps to whichever page is showing (the left one of a pair).
+    // The drawer pins apps to whichever page is showing.
     LaunchedEffect(pager.currentPage, pageNumbers) {
-        state.currentPage = pageNumbers.getOrElse(pager.currentPage * per) { 1 }
+        state.currentPage = pageNumbers.getOrElse(pager.currentPage) { 1 }
         engine.activePage = state.currentPage
     }
     // The background slides with the pages, like stock launchers. Our live wallpaper gets it through Android.
@@ -142,7 +128,7 @@ fun HomeScreen(
     val typing = terminals.active != null
     LaunchedEffect(typing) { if (!typing) terminals.keyboard?.hide() }
     LaunchedEffect(state.requestedPage) {
-        state.requestedPage?.let { if (it < pageNumbers.size) pager.animateScrollToPage(it / per) }
+        state.requestedPage?.let { if (it < pageNumbers.size) pager.animateScrollToPage(it) }
         state.requestedPage = null
     }
 
@@ -356,7 +342,6 @@ fun HomeScreen(
             room = if (LauncherStyle.recentApps && side == null) RecentStripHeight else 0.dp,
             turned = turned,
             side = side,
-            per = per,
             onLongPressEmpty = { openMenu(null) },
             onNoRoom = { item -> showPage = engine.moveToFreePage(item) },
             onMove = { item, page ->

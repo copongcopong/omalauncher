@@ -1,8 +1,8 @@
 widget "now playing" {
   page: 1
   order: 20
-  size: 6x2
-  minSize: 3x2
+  size: 12x2
+  minSize: 6x2
   meta { description: "What's playing on your phone, from any music or podcast app: album art, track, progress and play, pause and skip. Tap the tile to open the app"; version: "1.1"; license: "MIT"; category: "fun"; owl: 5 }
 
   // {available, playing, title, artist, album, app, package, position, duration, art}.
@@ -13,7 +13,7 @@ widget "now playing" {
   let allowed = m == null || m.available != false
   let dur = num(m.duration, 0)
   let pos = dur > 0 ? clamp(num(m.position, 0), 0, dur) : num(m.position, 0)
-  let narrow = cols != null && cols < 5
+  let narrow = cols != null && cols < 10
   let art = clamp((tileHeight ?? 130) - 26, 40, 132)
   // A tile taller than wide (landscape home screen, or a tall portrait tile) stacks
   // art, text and controls vertically instead of side by side.

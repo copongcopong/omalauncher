@@ -7,7 +7,7 @@ and it appears within a second. Then run `owl-check <file>`:
 ```
 $ owl-check 50-memory.owl
 50-memory.owl: compiles
-  preview: ~/.config/omalauncher/widgets/.preview/50-memory.owl.png (3x4 cells, 528x712 px, with live data); look at it to check the layout
+  preview: ~/.config/omalauncher/widgets/.preview/50-memory.owl.png (6x4 cells, 528x354 px, with live data); look at it to check the layout
 ```
 
 A widget with a `screen { }` (see Screens) gets a second picture, of the screen as it opens.
@@ -19,9 +19,9 @@ have loaded: open it to see whether text fits and the layout works, since you
 can't see the phone. Terminal tiles aren't previewed. Errors also go to
 `.errors/<file>.txt`, and the tile shows them.
 
-Widgets sit on a 6-column grid of roughly square cells (a phone has about 12
-rows), bordered like Omarchy windows and colored by the current Omarchy
-theme. Users move and resize them on the phone.
+Widgets sit on a 12-column grid of roughly square cells (an unfolded
+foldable's inner screen has about 13 rows), bordered like Omarchy windows and
+colored by the current Omarchy theme. Users move and resize them on the phone.
 
 `examples/` holds more widgets (clocks, system stats, processes, shaders, ...).
 They aren't on the home screen; read them for patterns, or move one up into
@@ -31,8 +31,8 @@ this folder to add it.
 widget "memory" {
   page: 1                 // home page, 1-based
   order: 2                // placement order on the page (lower = placed first)
-  size: 3x4               // preferred size in grid cells: columns x rows
-  minSize: 2x3            // users can't shrink it below this
+  size: 6x4               // preferred size in grid cells: columns x rows
+  minSize: 4x3            // users can't shrink it below this
 
   source mem = cmd("free -b | awk '/Mem:/ {print $2, $3}'") every 5s
   let used = num(words(mem)[1])
@@ -181,7 +181,7 @@ Unix seconds (`endsAt = now + 25 * 60`), not countdowns, so they're still right 
 
 The tile's size is available as `cols` and `rows` (grid cells) and `tileWidth` and
 `tileHeight` (dp, including the tile padding). They change when the user resizes the
-tile, so a widget can pick a layout to fit (`if cols < 3 { ... } else { ... }`). They're
+tile, so a widget can pick a layout to fit (`if cols < 6 { ... } else { ... }`). They're
 `null` for a moment before the tile is laid out. A widget's own declaration named
 `rows` or `cols` takes precedence.
 
@@ -385,7 +385,7 @@ a REPL) that you can type into:
 
 ```owl
 widget "shell" {
-  size: 6x4
+  size: 12x4
   padding: 0
   meta { owl: 2 }
   Terminal { }
@@ -517,8 +517,8 @@ and the message goes to `.errors/`.
 
 - One small, focused widget per file; name files `NN-name.owl` to order them.
 - Test commands in a terminal first. For several values, print JSON and use `json`.
-- The phone is portrait: 6 columns, ~12 rows. A full-width widget is `6xN`,
-  half-width `3xN`. Set `minSize` to what the layout still fits in.
+- The grid is 12 columns across: on a foldable's inner screen a full-width
+  widget is `12xN`, half-width `6xN`. Set `minSize` to what the layout still fits in.
 - Use `weight: 1` to fill leftover space and `fill: width` to stretch across.
 - A `Text` without `width`, `weight` or `fill` takes the full width. In a `Row`, give the Texts
   next to a `weight: 1` one a `width`, or the weighted one is squeezed to nothing.

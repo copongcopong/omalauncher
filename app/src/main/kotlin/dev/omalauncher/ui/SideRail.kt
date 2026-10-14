@@ -41,11 +41,11 @@ import dev.omalauncher.linux.LinuxState
 /** Where landscape home keeps the recent apps strip and the bar: the side portrait's bottom turned to. */
 enum class HomeSide { Left, Right }
 
-/** Whether home turns portrait's grid on its side: landscape, unless the window shows two pages. */
+/** Whether home turns portrait's grid on its side: landscape, unless the window is a foldable's inner screen. */
 @Composable
 internal fun homeTurned(): Boolean {
     val window = LocalWindowInfo.current.containerSize
-    return window.width > window.height && !showsTwoPages(window)
+    return window.width > window.height && !innerScreen(window)
 }
 
 /**
@@ -83,10 +83,10 @@ internal fun homeSide(): HomeSide? {
 }
 
 /**
- * Whether home shows two pages side by side: when each half of the window is phone-shaped, as on a
- * foldable's inner screen in either orientation. Phones, tablets and phone landscape show one.
+ * Whether the window is a foldable's inner screen: each half of it phone-shaped, in either orientation.
+ * Home keeps portrait's grid unturned there, and phones, tablets and phone landscape don't match.
  */
-internal fun showsTwoPages(window: IntSize) = window.width / 2f / window.height in 0.4f..0.65f
+internal fun innerScreen(window: IntSize) = window.width / 2f / window.height in 0.4f..0.65f
 
 /**
  * Room the side takes beside the grid: the strip and the gap between tiles after it, then the rail and the edge's gap

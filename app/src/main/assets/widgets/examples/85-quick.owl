@@ -1,8 +1,8 @@
 widget "quick" {
   page: 3
   order: 4
-  size: 6x2
-  minSize: 4x2
+  size: 12x2
+  minSize: 8x2
 
   meta { owl: 7; description: "The next alarm, the phone's modes and a torch switch, without Linux."; version: "1.0"; license: "MIT"; category: "system" }
 

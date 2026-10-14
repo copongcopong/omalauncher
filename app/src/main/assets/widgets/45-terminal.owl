@@ -1,8 +1,8 @@
 widget "terminal" {
   page: 1
   order: 5
-  size: 6x4
-  minSize: 2x2
+  size: 12x4
+  minSize: 4x2
   padding: 0
 
   meta { owl: 2 }
