@@ -1,5 +1,10 @@
 # Omalauncher
 
+> **Fork.** This is [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher),
+> forked to make widgets reach the full width of a foldable's inner screen. The home grid is 12
+> columns spanning the whole screen instead of two 6-column pages side by side, so a tile can be
+> full width. It builds as `dev.omalauncher.fold`, so it installs beside the Play app.
+
 An Android home screen with the look of [Omarchy](https://omarchy.org), and an
 optional Arch Linux ARM system next to your phone apps. Omalauncher runs the
 system under proot, without root, and is its Wayland compositor: every Linux
