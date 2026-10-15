@@ -1,5 +1,6 @@
 package dev.omalauncher.ui
 
+import androidx.compose.ui.unit.dp
 import dev.omalauncher.wayland.Keys
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -129,6 +130,14 @@ class ExtraKeysSpecTest {
         val parsed = ExtraKeysSpec.parse("""height = "34"""")
         assertEquals(ExtraKeysSpec.Sizes(), parsed.sizes)
         assertEquals(listOf("height: a number, like height = 34"), parsed.problems)
+    }
+
+    @Test fun theBarIsThatTallWithItsFrameAndGap() {
+        // Three rows at 30dp: 90 + the frame and key gaps (2+3)*2 + the bar's gap of 6.
+        assertEquals(106.dp, extraKeysHeight(ExtraKeysSpec.Sizes(row = 30f, text = 11f), 3))
+        assertEquals(96.dp, extraKeysHeight(ExtraKeysSpec.Sizes(), 2))
+        // No rows, no bar: home's lift adds nothing.
+        assertEquals(0.dp, extraKeysHeight(ExtraKeysSpec.Sizes(), 0))
     }
 
     @Test fun aRowThatIsntTextIsAProblem() {
