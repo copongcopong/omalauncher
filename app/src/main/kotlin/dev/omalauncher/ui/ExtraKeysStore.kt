@@ -29,7 +29,11 @@ class ExtraKeysStore(
     private val file = File(LauncherData.keysDir(context), FILE)
 
     /** The bar's rows, empty when the file asks for no bar. */
-    var rows by mutableStateOf(presetRows)
+    var rows by mutableStateOf(preset.rows)
+        private set
+
+    /** The bar's shape: one row's height and the label size. */
+    var sizes by mutableStateOf(preset.sizes)
         private set
 
     /** What the file got wrong, for the launcher to show; the bar keeps the last rows that read. */
@@ -37,7 +41,7 @@ class ExtraKeysStore(
         private set
 
     /** What home lifts a typing tile by: the bar's height for its rows, nothing when there are none. */
-    val height: Dp get() = extraKeysHeight(rows.size)
+    val height: Dp get() = extraKeysHeight(sizes, rows.size)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -67,6 +71,7 @@ class ExtraKeysStore(
         // A file that doesn't read changes nothing but what the launcher shows.
         if (parsed.problems.isEmpty()) {
             rows = parsed.rows
+            sizes = parsed.sizes
             errors = emptyList()
         } else {
             errors = parsed.problems
@@ -78,7 +83,8 @@ class ExtraKeysStore(
             file.parentFile?.mkdirs()
             writeAtomically(file, ExtraKeysSpec.PRESET.toByteArray())
         }.onFailure { Log.w(TAG, "can't write $FILE", it) }
-        rows = presetRows
+        rows = preset.rows
+        sizes = preset.sizes
         errors = emptyList()
     }
 
@@ -87,6 +93,6 @@ class ExtraKeysStore(
 
         private const val TAG = "ExtraKeys"
 
-        private val presetRows = ExtraKeysSpec.parse(ExtraKeysSpec.PRESET).rows
+        private val preset = ExtraKeysSpec.parse(ExtraKeysSpec.PRESET)
     }
 }

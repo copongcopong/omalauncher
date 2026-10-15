@@ -110,6 +110,27 @@ class ExtraKeysSpecTest {
         assertEquals(Keys.KEY_UP, smile.code)
     }
 
+    @Test fun theBarIsFortyAndFourteenUnlessTheFileSaysOtherwise() {
+        assertEquals(ExtraKeysSpec.Sizes(row = 40f, text = 14f), ExtraKeysSpec.parse(ExtraKeysSpec.PRESET).sizes)
+        val sizes = ExtraKeysSpec.parse("height = 30" + "\n" + "text = 11" + "\n" + """row1 = "esc"""").sizes
+        assertEquals(ExtraKeysSpec.Sizes(row = 30f, text = 11f), sizes)
+        // One of them alone leaves the other at its default.
+        assertEquals(ExtraKeysSpec.Sizes(row = 24f, text = 14f), ExtraKeysSpec.parse("height = 24").sizes)
+        assertEquals(ExtraKeysSpec.Sizes(row = 40f, text = 9f), ExtraKeysSpec.parse("text = 9").sizes)
+    }
+
+    @Test fun aShapeOutsideTheRangeIsAProblemAndTheDefaultStands() {
+        val parsed = ExtraKeysSpec.parse("height = 200" + "\n" + "text = 2")
+        assertEquals(ExtraKeysSpec.Sizes(), parsed.sizes)
+        assertEquals(listOf("height: 200.0 is outside 20..80", "text: 2.0 is outside 8..24"), parsed.problems)
+    }
+
+    @Test fun aShapeThatIsntANumberIsAProblem() {
+        val parsed = ExtraKeysSpec.parse("""height = "34"""")
+        assertEquals(ExtraKeysSpec.Sizes(), parsed.sizes)
+        assertEquals(listOf("height: a number, like height = 34"), parsed.problems)
+    }
+
     @Test fun aRowThatIsntTextIsAProblem() {
         val parsed = ExtraKeysSpec.parse("row1 = 3")
         assertEquals(emptyList<List<ExtraKey>>(), parsed.rows)

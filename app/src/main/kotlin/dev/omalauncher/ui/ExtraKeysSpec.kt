@@ -33,10 +33,17 @@ class LatchKey(
  * it for the app.
  */
 object ExtraKeysSpec {
-    /** What [parse] made of a file: its rows, and what it couldn't read. */
+    /** The bar's shape: one row's height in dp, and the label size in sp. */
+    data class Sizes(
+        val row: Float = 40f,
+        val text: Float = 14f,
+    )
+
+    /** What [parse] made of a file: its rows, its shape, and what it couldn't read. */
     class Parsed(
         val rows: List<List<ExtraKey>>,
         val problems: List<String>,
+        val sizes: Sizes = Sizes(),
     )
 
     /** The modifiers a key can hold or latch, by the name the file uses. */
@@ -108,6 +115,9 @@ object ExtraKeysSpec {
     /** How the four arrows are drawn, in degrees from up. */
     private val ARROWS = mapOf("up" to 0f, "right" to 90f, "down" to 180f, "left" to -90f)
 
+    /** A row's height, and a label's size, have to stay usable on a phone. */
+    private val SHAPE = mapOf("height" to (20f to 80f), "text" to (8f to 24f))
+
     /**
      * Reads [text]; a row that doesn't read is left out and named in the
      * problems, so the caller can keep the rows that last read.
@@ -121,7 +131,22 @@ object ExtraKeysSpec {
             }
         val problems = mutableListOf<String>()
         val rows = mutableListOf<List<ExtraKey>>()
+        var sizes = Sizes()
         for ((row, value) in table) {
+            val shape = SHAPE[row]
+            if (shape != null) {
+                val number =
+                    (value as? Double) ?: run {
+                        problems += "$row: a number, like $row = ${if (row == "height") 34 else 12}"
+                        continue
+                    }
+                if (number < shape.first || number > shape.second) {
+                    problems += "$row: $number is outside ${shape.first.toInt()}..${shape.second.toInt()}"
+                    continue
+                }
+                sizes = if (row == "height") sizes.copy(row = number.toFloat()) else sizes.copy(text = number.toFloat())
+                continue
+            }
             if (value !is String) {
                 problems += "$row: a row is text in quotes, like $row = \"esc tab ctrl\""
                 continue
@@ -129,7 +154,7 @@ object ExtraKeysSpec {
             val keys = value.split(' ', '\t').filter { it.isNotEmpty() }.mapNotNull { key(it, row, problems) }
             if (keys.isNotEmpty()) rows += keys
         }
-        return Parsed(rows, problems)
+        return Parsed(rows, problems, sizes)
     }
 
     /** One key of a row: `label=spec`, or just `spec` to be drawn as itself. */
@@ -201,6 +226,10 @@ object ExtraKeysSpec {
         # / - [ ] ; ' , . itself, or an evdev code as a number; = is written equal, as it
         # separates a label from a spec. A row with no keys, or a file with no rows, leaves
         # the bar away.
+        #
+        # The bar's shape, both optional and both before the rows' text:
+        #   height = 34    one row's height in dp, 20..80; 40 without it
+        #   text = 12      the label size in sp, 8..24; 14 without it
         #
         # The bar shows while a soft keyboard is up: with a hardware keyboard these keys
         # already exist, so it stays off. An edit here reaches the bar as soon as it's saved.

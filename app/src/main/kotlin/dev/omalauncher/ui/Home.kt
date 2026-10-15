@@ -357,6 +357,7 @@ fun HomeScreen(
         ExtraKeys(
             runtime.keyboard,
             runtime.extraKeys.rows,
+            runtime.extraKeys.sizes,
             Modifier
                 .align(Alignment.BottomCenter)
                 .imePadding()

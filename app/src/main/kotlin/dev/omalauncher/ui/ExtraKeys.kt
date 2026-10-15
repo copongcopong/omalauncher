@@ -37,13 +37,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** One row's height, keycap and the gap around it; the bar's rows come from [ExtraKeysStore]. */
-private val RowHeight = 40.dp
+/** Keycap and gap sizes that don't come from the file: the frame, its gap, and the bar's side gap. */
 private val KeyGap = 3.dp
 private val FrameWidth = 2.dp
 
@@ -51,11 +51,13 @@ private val FrameWidth = 2.dp
 private val Gap = 6.dp
 
 /**
- * The bar's full height for [rowCount] rows, gap included, and nothing when it has
- * no rows; the home screen lifts a typing tile by this much more.
+ * The bar's full height for [sizes] and [rowCount] rows, gap included, and nothing
+ * when it has no rows; the home screen lifts a typing tile by this much more.
  */
-fun extraKeysHeight(rowCount: Int): Dp =
-    if (rowCount <= 0) 0.dp else RowHeight * rowCount + (FrameWidth + KeyGap) * 2 + Gap
+fun extraKeysHeight(
+    sizes: ExtraKeysSpec.Sizes,
+    rowCount: Int,
+): Dp = if (rowCount <= 0) 0.dp else sizes.row.dp * rowCount + (FrameWidth + KeyGap) * 2 + Gap
 
 /**
  * Whether the extra-keys row belongs on screen: only over a docked soft
@@ -76,13 +78,14 @@ fun extraKeysWanted(): Boolean {
  * The keys a phone keyboard lacks, docked above it for terminals: a framed
  * panel of keycaps, like the tiles above it. Keys never take focus, so the
  * soft keyboard stays up; ctrl, alt and shift latch for the next key on a tap
- * and lock on a long press. The rows are [ExtraKeysStore]'s, so editing
- * keys.toml redraws them.
+ * and lock on a long press. The rows and the size of them are [ExtraKeysStore]'s,
+ * so editing keys.toml redraws them.
  */
 @Composable
 fun ExtraKeys(
     bridge: KeyboardBridge,
     rows: List<List<ExtraKey>>,
+    sizes: ExtraKeysSpec.Sizes,
     modifier: Modifier = Modifier,
 ) {
     if (rows.isEmpty()) return
@@ -94,12 +97,12 @@ fun ExtraKeys(
             .padding(KeyGap),
     ) {
         for (row in rows) {
-            Row(Modifier.fillMaxWidth().height(RowHeight)) {
+            Row(Modifier.fillMaxWidth().height(sizes.row.dp)) {
                 for (key in row) {
                     val cap = Modifier.weight(1f).fillMaxHeight().padding(KeyGap)
                     when (key) {
-                        is Press -> PlainKey(key, bridge, cap)
-                        is LatchKey -> bridge.latch(key.modifier)?.let { StickyKey(key, it, cap) }
+                        is Press -> PlainKey(key, bridge, sizes, cap)
+                        is LatchKey -> bridge.latch(key.modifier)?.let { StickyKey(key, it, sizes, cap) }
                     }
                 }
             }
@@ -111,6 +114,7 @@ fun ExtraKeys(
 private fun PlainKey(
     key: Press,
     bridge: KeyboardBridge,
+    sizes: ExtraKeysSpec.Sizes,
     modifier: Modifier,
 ) {
     val view = LocalView.current
@@ -139,9 +143,11 @@ private fun PlainKey(
     ) {
         val color = if (pressed) Palette.background else Palette.foreground
         if (key.arrow != null) {
-            Image(Icons.Chevron, key.label, Modifier.size(20.dp).rotate(key.arrow), colorFilter = ColorFilter.tint(color))
+            // Half the row, so a shorter bar gets a smaller chevron with it.
+            val chevron = (sizes.row * 0.5f).coerceAtMost(20f).dp
+            Image(Icons.Chevron, key.label, Modifier.size(chevron).rotate(key.arrow), colorFilter = ColorFilter.tint(color))
         } else {
-            BasicText(key.label, style = Mono.copy(color = color))
+            BasicText(key.label, style = Mono.copy(color = color, fontSize = sizes.text.sp))
         }
     }
 }
@@ -150,6 +156,7 @@ private fun PlainKey(
 private fun StickyKey(
     key: LatchKey,
     sticky: StickyModifier,
+    sizes: ExtraKeysSpec.Sizes,
     modifier: Modifier,
 ) {
     val view = LocalView.current
@@ -179,6 +186,7 @@ private fun StickyKey(
             key.label,
             style =
                 Mono.copy(
+                    fontSize = sizes.text.sp,
                     color =
                         when (latch) {
                             Latch.Off -> Palette.foreground

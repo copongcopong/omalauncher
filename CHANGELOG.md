@@ -13,7 +13,9 @@ Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalaun
 - The extra-keys bar is configurable. `~/.config/omalauncher/keys/keys.toml` holds its rows
   and keys — a key by name or evdev code, `*` to repeat while held, `ctrl`/`alt`/`shift`
   alone to latch a modifier, `label=ctrl+x` to hold one around a key — and the bar follows
-  the file as it's saved. The preset is the bar's old keys plus `^b`, `^a` and `^p`.
+  the file as it's saved. Its shape is settings too: `height` in dp for a row (20..80) and
+  `text` in sp for the labels (8..24), both optional. The preset is the bar's old keys plus
+  `^b`, `^a` and `^p`.
 - The home screen's grid is 12 columns across the whole inner screen of a foldable, instead
   of the two 6-column pages side by side, so a widget tile can be full width.
 
