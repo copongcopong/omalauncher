@@ -1,7 +1,7 @@
 # Omalauncher
 
-> **Omalauncher Z.** This is **Omalauncher Z**, [copongcopong/omalauncher](https://github.com/copongcopong/omalauncher),
-> a fork of [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher) developed on `main`.
+> **Omalauncher Z.** [copongcopong/omalauncher](https://github.com/copongcopong/omalauncher) is a fork of
+> [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher) developed on `main`.
 > Three changes so far, all aimed at a foldable's inner screen:
 >
 > - The home grid is 12 columns spanning the whole screen instead of two 6-column pages side by
