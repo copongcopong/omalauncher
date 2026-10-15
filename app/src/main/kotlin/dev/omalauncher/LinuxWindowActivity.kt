@@ -189,7 +189,7 @@ private fun AppWindow(
                 Box(Modifier.fillMaxSize().linuxWindowInput(runtime.wm, window))
                 Box(
                     Modifier
-                        .align(Alignment.BottomEnd)
+                        .align(Alignment.BottomStart)
                         .padding(12.dp)
                         .size(40.dp)
                         .background(Palette.overlay, CircleShape)

@@ -256,7 +256,7 @@ fun TerminalView(
                 Box(Modifier.fillMaxSize().linuxWindowInput(tiles.windowManager, window))
                 Box(
                     Modifier
-                        .align(Alignment.BottomEnd)
+                        .align(Alignment.BottomStart)
                         .padding(6.dp)
                         .size(32.dp)
                         .background(Palette.overlay, CircleShape)
