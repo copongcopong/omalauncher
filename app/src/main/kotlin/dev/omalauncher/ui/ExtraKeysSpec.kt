@@ -212,6 +212,18 @@ object ExtraKeysSpec {
         # first, each row's keys left to right. Keys in a row share its width, so a row with
         # fewer keys draws wider caps, and rows needn't be the same length.
         #
+        # To update it: edit this file and save. The bar redraws as soon as the file is
+        # saved — no rebuild, no restart. In the Arch guest this is
+        # ~/.config/omalauncher/keys/keys.toml; on Android it is the launcher's
+        # files/keys/keys.toml, which only run-as can write:
+        #   adb push keys.toml /data/local/tmp/ && \
+        #     adb shell run-as dev.omalauncher.fold cp /data/local/tmp/keys.toml files/keys/keys.toml
+        #
+        # Agents: read the whole format before editing, it's all there —
+        # https://github.com/copongcopong/omalauncher/blob/main/docs/EXTRA-KEYS.md
+        # (every key name, labels and emoji, latches, the height and text settings, and what
+        # happens to a row that doesn't read).
+        #
         #   esc                a key, named below, drawn as its name
         #   up down left right drawn as chevrons, and they repeat while held
         #   pgup*              a trailing * repeats the key while it's held
@@ -227,14 +239,15 @@ object ExtraKeysSpec {
         # separates a label from a spec. A row with no keys, or a file with no rows, leaves
         # the bar away.
         #
-        # The bar's shape, both optional and both before the rows' text:
-        #   height = 34    one row's height in dp, 20..80; 40 without it
-        #   text = 12      the label size in sp, 8..24; 14 without it
+        # The bar's shape, both optional, here as they were chosen: a row's height in dp
+        # and the label size in sp (height 20..80, 40 without it; text 8..24, 14 without it).
+        height = 36
+        text = 12
         #
         # The bar shows while a soft keyboard is up: with a hardware keyboard these keys
         # already exist, so it stays off. An edit here reaches the bar as soon as it's saved.
 
-        row1 = "esc / - home up end pgup* copy=ctrl+insert"
-        row2 = "tab ctrl alt left down right pgdn* paste=shift+insert ^b=ctrl+b ^a=ctrl+a ^p=ctrl+p"
+        row1 = "esc / - ; home end pgup* pgdn* copy=ctrl+insert paste=shift+insert"
+        row2 = "tab ctrl alt left up down right ^b=ctrl+b ^a=ctrl+a ^p=ctrl+p"
         """.trimIndent()
 }

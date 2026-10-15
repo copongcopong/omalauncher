@@ -13,33 +13,38 @@ class ExtraKeysSpecTest {
 
     private fun problems(text: String) = ExtraKeysSpec.parse(text).problems
 
-    @Test fun presetIsTheBarsOldLayout() {
+    @Test fun presetIsTheKeysTheForkShips() {
         val parsed = ExtraKeysSpec.parse(ExtraKeysSpec.PRESET)
         assertEquals(emptyList<String>(), parsed.problems)
         val (first, second) = parsed.rows
         assertEquals(
-            listOf("esc", "/", "-", "home", "up", "end", "pgup", "copy"),
+            listOf("esc", "/", "-", ";", "home", "end", "pgup", "pgdn", "copy", "paste"),
             first.map { (it as Press).label },
         )
         assertEquals(
-            listOf("tab", "ctrl", "alt", "left", "down", "right", "pgdn", "paste", "^b", "^a", "^p"),
+            listOf("tab", "ctrl", "alt", "left", "up", "down", "right", "^b", "^a", "^p"),
             second.map { if (it is Press) it.label else (it as LatchKey).label },
         )
+        assertEquals(ExtraKeysSpec.Sizes(row = 36f, text = 12f), parsed.sizes)
     }
 
     @Test fun presetKeepsTheKeysBehaviour() {
-        val first = ExtraKeysSpec.parse(ExtraKeysSpec.PRESET).rows.first()
-        val up = first[4] as Press
+        val (first, second) = ExtraKeysSpec.parse(ExtraKeysSpec.PRESET).rows
         // Arrows draw as chevrons and repeat while held, without a * in the file.
+        val up = second[4] as Press
         assertEquals(Keys.KEY_UP, up.code)
         assertTrue(up.arrow == 0f)
         assertTrue(up.repeats)
-        // copy is ctrl+insert, held around it, as the clipboard keys foot, GTK and Qt know.
-        val copy = first[7] as Press
+        // copy and paste hold a modifier around insert, as the clipboard keys foot, GTK and Qt know.
+        val copy = first[8] as Press
         assertEquals(Keys.KEY_INSERT, copy.code)
         assertEquals(Keys.KEY_LEFTCTRL, copy.held)
+        assertEquals(Keys.KEY_LEFTSHIFT, (first[9] as Press).held)
+        // pgup and pgdn repeat because of their *.
         assertEquals(Keys.KEY_PAGEUP, (first[6] as Press).code)
         assertTrue((first[6] as Press).repeats)
+        assertEquals(Keys.KEY_PAGEDOWN, (first[7] as Press).code)
+        assertTrue((first[7] as Press).repeats)
     }
 
     @Test fun stickyModifiersLatch() {
@@ -111,11 +116,12 @@ class ExtraKeysSpecTest {
         assertEquals(Keys.KEY_UP, smile.code)
     }
 
-    @Test fun theBarIsFortyAndFourteenUnlessTheFileSaysOtherwise() {
-        assertEquals(ExtraKeysSpec.Sizes(row = 40f, text = 14f), ExtraKeysSpec.parse(ExtraKeysSpec.PRESET).sizes)
+    @Test fun theBarsShapeComesFromTheFileOrTheDefaults() {
+        assertEquals(ExtraKeysSpec.Sizes(row = 36f, text = 12f), ExtraKeysSpec.parse(ExtraKeysSpec.PRESET).sizes)
         val sizes = ExtraKeysSpec.parse("height = 30" + "\n" + "text = 11" + "\n" + """row1 = "esc"""").sizes
         assertEquals(ExtraKeysSpec.Sizes(row = 30f, text = 11f), sizes)
-        // One of them alone leaves the other at its default.
+        // A file that sets none keeps the defaults, and one of them alone leaves the other.
+        assertEquals(ExtraKeysSpec.Sizes(), ExtraKeysSpec.parse("""row1 = "esc"""").sizes)
         assertEquals(ExtraKeysSpec.Sizes(row = 24f, text = 14f), ExtraKeysSpec.parse("height = 24").sizes)
         assertEquals(ExtraKeysSpec.Sizes(row = 40f, text = 9f), ExtraKeysSpec.parse("text = 9").sizes)
     }

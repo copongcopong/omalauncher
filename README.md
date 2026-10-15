@@ -10,9 +10,9 @@
 >   home screen's terminal tiles and a Linux window's own activity.
 > - The extra-keys bar is a config file, `keys.toml`: its rows and keys are edited in the
 >   terminal (`~/.config/omalauncher/keys/keys.toml`) and redraw on save, no rebuild. The
->   preset is the bar's old keys plus `^b`, `^a` and `^p`; a row's `height` and the label
->   `text` are settings too, so the bar can be made shorter. See
->   [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md).
+>   preset is the fork's own keys — `^b`, `^a` and `^p` on the second row — at
+>   `height = 36` and `text = 12`, and the file's own header says how to update it and
+>   links the format's docs: [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md).
 >
 > It builds as `dev.omalauncher.fold`, so it installs beside the Play app. Upstream's release
 > notes are the [CHANGELOG](CHANGELOG.md); this fork's own changes are under `Unreleased` there.

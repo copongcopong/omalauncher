@@ -126,13 +126,20 @@ Both bars read the same rows, so an edit shows in the tile and in the window.
 
 ## The preset
 
-What a launcher with no `keys.toml` writes, and what the bar has always had
-plus the ctrl keys the fork added:
+What a launcher with no `keys.toml` writes is the fork's own bar: two rows, with the
+ctrl keys on the second, drawn at `height = 36` and `text = 12` so a fresh file starts
+shorter than upstream's bar.
 
 ```toml
-row1 = "esc / - home up end pgup* copy=ctrl+insert"
-row2 = "tab ctrl alt left down right pgdn* paste=shift+insert ^b=ctrl+b ^a=ctrl+a ^p=ctrl+p"
+height = 36
+text = 12
+row1 = "esc / - ; home end pgup* pgdn* copy=ctrl+insert paste=shift+insert"
+row2 = "tab ctrl alt left up down right ^b=ctrl+b ^a=ctrl+a ^p=ctrl+p"
 ```
+
+Above those lines the file carries the format as comments, how to update it from
+either side, and a link to this page — so an agent that opens `keys.toml` has
+somewhere to read before it edits.
 
 ## Where it's implemented
 

@@ -14,8 +14,9 @@ Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalaun
   and keys — a key by name or evdev code, `*` to repeat while held, `ctrl`/`alt`/`shift`
   alone to latch a modifier, `label=ctrl+x` to hold one around a key — and the bar follows
   the file as it's saved. Its shape is settings too: `height` in dp for a row (20..80) and
-  `text` in sp for the labels (8..24), both optional. The preset is the bar's old keys plus
-  `^b`, `^a` and `^p`.
+  `text` in sp for the labels (8..24), both optional. The preset is the fork's own rows at
+  `height = 36`, `text = 12`, and its header says how to update the file and links
+  [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md), the format's reference.
 - The home screen's grid is 12 columns across the whole inner screen of a foldable, instead
   of the two 6-column pages side by side, so a widget tile can be full width.
 
