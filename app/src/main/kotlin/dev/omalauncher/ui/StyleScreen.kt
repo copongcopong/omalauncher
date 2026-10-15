@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,8 +45,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -209,8 +212,10 @@ private fun BackgroundSection(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    // Keyed on the background too, so an image just added shows up.
-    val backgrounds = remember(theme, store.background) { theme.backgrounds() }
+    // Keyed on the background too, so an image just added shows up; removals bump [removed].
+    var removed by remember { mutableStateOf(0) }
+    val backgrounds = remember(theme, store.background, removed) { theme.backgrounds() }
+    var removing by remember { mutableStateOf<File?>(null) }
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) scope.launch { store.addBackground(uri) }
     }
@@ -222,6 +227,8 @@ private fun BackgroundSection(
                 selected = file == store.background,
                 modifier = Modifier.width(120.dp).aspectRatio(16f / 10f),
                 onClick = { scope.launch { store.setBackground(file) } },
+                // Only the user's own images; the theme's come back with it anyway.
+                onLongClick = if (theme.isExtraBackground(file)) ({ removing = file }) else null,
             )
         }
         // Omarchy's Install > Style > Background, with Android's image picker instead of a folder.
@@ -254,6 +261,20 @@ private fun BackgroundSection(
             )
         } else {
             BasicText("[ use as android wallpaper + system colors ]", style = Mono.copy(color = Palette.accent))
+        }
+    }
+    removing?.let { file ->
+        ConfirmDialog(
+            "remove background?",
+            "It's deleted from the phone and from Linux.",
+            "remove",
+            onDismiss = { removing = null },
+        ) {
+            removing = null
+            scope.launch {
+                store.removeBackground(file)
+                removed++
+            }
         }
     }
 }
@@ -524,14 +545,25 @@ private fun Thumbnail(
     selected: Boolean,
     modifier: Modifier,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
+    val haptics = LocalHapticFeedback.current
     val image by produceState<ImageBitmap?>(null, file) {
         value = withContext(Dispatchers.IO) { decodeSampled(file, 480, 0)?.asImageBitmap() }
     }
     Box(
         modifier
             .frame(2.dp, if (selected) Palette.accent else Color.Transparent, Palette.surface, radius = 12.dp)
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick =
+                    onLongClick?.let {
+                        {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            it()
+                        }
+                    },
+            ),
     ) {
         image?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
     }

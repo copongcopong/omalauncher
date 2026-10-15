@@ -335,7 +335,7 @@ class WidgetServices(
             "media" -> media.control(arg)
             "volume" -> volume.control(args[0])
             "notification" -> args.getOrNull(1)?.takeIf { it != Null }?.let { notifications.control(arg, it.toString()) }
-            "androidApp" -> context.packageManager.getLaunchIntentForPackage(arg)?.let { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            "androidApp" -> context.packageManager.getLaunchIntentForPackage(arg)?.let { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)) }
             "copy" -> copy(arg)
             "notify" -> notify(arg, args.getOrNull(1)?.takeIf { it != Null }?.toString())
             "torch" -> modes.torch(args[0])

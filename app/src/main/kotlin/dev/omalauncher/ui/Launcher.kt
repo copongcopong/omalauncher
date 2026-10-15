@@ -80,28 +80,10 @@ private fun DesktopScreen(
     state: LauncherState,
 ) {
     val context = LocalContext.current
-    // Something that needs Linux was asked for (a terminal, Super+Enter): offer to install it.
-    LaunchedEffect(runtime.linuxWanted) {
-        if (runtime.linuxWanted) {
-            runtime.linuxWanted = false
-            state.close()
-            state.linuxOpen = true
-        }
-    }
     BackHandler {
         when {
-            // Screens opened from settings return to it; settings itself is last.
             state.shared != null -> state.shared = null
             state.sharing != null -> state.sharing = null
-            state.linuxOpen -> state.linuxOpen = false
-            state.licensesOpen -> state.licensesOpen = false
-            state.gesturesOpen -> state.gesturesOpen = false
-            state.agentsOpen -> state.agentsOpen = false
-            state.storeOpen -> state.storeOpen = false
-            state.themeBrowserOpen -> state.themeBrowserOpen = false
-            state.styleOpen -> state.styleOpen = false
-            state.packagesOpen -> state.packagesOpen = false
-            state.settingsOpen -> state.settingsOpen = false
             runtime.widgets.openScreen != null -> runtime.widgets.openScreen = null
             else -> state.close()
         }
@@ -213,10 +195,7 @@ private fun DesktopScreen(
                         highlighted = highlighted,
                         handlers = handlers,
                         onAsk = { state.promptRequest = PromptRequest.Send },
-                        onSettings = {
-                            state.closeNow()
-                            state.settingsOpen = true
-                        },
+                        onSettings = { state.show() },
                         modifier =
                             Modifier.graphicsLayer {
                                 val progress = state.drawer.value
@@ -293,27 +272,6 @@ private fun ThemesOverlay(
             WidgetScreenPanel(spec, inst, onDismiss = { runtime.widgets.openScreen = null })
         }
     }
-    // Settings first so the screens it opens draw on top of it.
-    if (state.settingsOpen) {
-        SettingsScreen(
-            runtime,
-            onDismiss = { state.settingsOpen = false },
-            onStyle = { state.styleOpen = true },
-            onAgents = { state.agentsOpen = true },
-            onPackages = { state.packagesOpen = true },
-            onStore = { state.storeOpen = true },
-            onLinux = { state.linuxOpen = true },
-            onLicenses = { state.licensesOpen = true },
-            onGestures = { state.gesturesOpen = true },
-        )
-    }
-    if (state.packagesOpen) PackagesScreen(runtime, onDismiss = { state.packagesOpen = false })
-    if (state.styleOpen) StyleScreen(runtime, onDismiss = { state.styleOpen = false }, onBrowse = { state.themeBrowserOpen = true })
-    if (state.themeBrowserOpen) ThemeCatalogScreen(runtime.themes, onDismiss = { state.themeBrowserOpen = false })
-    if (state.storeOpen) StoreScreen(runtime.widgets, runtime.agents.installed, state.currentPage, runtime.themes.picked, onDismiss = { state.storeOpen = false })
-    if (state.licensesOpen) LicensesScreen(onDismiss = { state.licensesOpen = false })
-    if (state.gesturesOpen) GesturesScreen(runtime, onDismiss = { state.gesturesOpen = false })
-    if (state.linuxOpen) LinuxScreen(runtime, onDismiss = { state.linuxOpen = false })
     state.shared?.let { link ->
         SharedWidgetScreen(
             runtime.widgets,
@@ -322,7 +280,7 @@ private fun ThemesOverlay(
             // Stays open underneath, to add it once the agent has had its say.
             onReview = { path ->
                 val agent = runtime.agents.default
-                if (agent == null) state.agentsOpen = true else runtime.terminal(reviewSharedWidgetCommand(agent.bin, path), "Review widget", agent)
+                if (agent == null) state.show(SettingsPage.Agents) else runtime.terminal(reviewSharedWidgetCommand(agent.bin, path), "Review widget", agent)
             },
             onDismiss = { state.shared = null },
         )
@@ -339,26 +297,16 @@ private fun ThemesOverlay(
                         state.sharing = null
                         // The default agent opens a pull request (or an issue) on the store repo.
                         val agent = runtime.agents.default
-                        if (agent == null) state.agentsOpen = true else runtime.terminal(publishWidgetCommand(agent.bin, spec), "Publish ${spec.name}", agent)
+                        if (agent == null) state.show(SettingsPage.Agents) else runtime.terminal(publishWidgetCommand(agent.bin, spec), "Publish ${spec.name}", agent)
                     }
                 },
             // Closes the screen: what the agent changes would be shared from a fresh one.
             onCheck = {
                 state.sharing = null
                 val agent = runtime.agents.default
-                if (agent == null) state.agentsOpen = true else runtime.terminal(checkSecretsCommand(agent.bin, spec), "Check ${spec.name}", agent)
+                if (agent == null) state.show(SettingsPage.Agents) else runtime.terminal(checkSecretsCommand(agent.bin, spec), "Check ${spec.name}", agent)
             },
             onDismiss = { state.sharing = null },
-        )
-    }
-    if (state.agentsOpen) {
-        AgentsScreen(
-            runtime,
-            onDismiss = { state.agentsOpen = false },
-            onOpen = { agent ->
-                state.agentsOpen = false
-                runtime.terminal(agent.bin, agent.name, agent)
-            },
         )
     }
 }

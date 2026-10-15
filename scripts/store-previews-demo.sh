@@ -286,7 +286,7 @@ printf 'Personal = file://%s/personal.ics\nWork = file://%s/work.ics\n' "$demo" 
 # Codex reply read aloud, and a sentence dictated. The voice service itself isn't installed, so
 # nothing overwrites these while the previews are drawn.
 aside "$voice"
-printf '%s' '3.3-32999871' > "$voice"
+printf '%s' '3.4-1acdf3a4' > "$voice"
 aside "$voicestate"
 printf '{"source":"codex","status":"播放完成","status_ui":"Playback complete","awaiting":false,"reply_at":%s,"summary":"Fixed the form validation on the login page and added two tests for an empty password; all tests pass."}\n' "$(( $(date +%s) - 240 ))" > "$voicestate"
 aside "$dictated"

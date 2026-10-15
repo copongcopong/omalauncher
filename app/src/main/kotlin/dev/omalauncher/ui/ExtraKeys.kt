@@ -44,8 +44,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Keycap and gap sizes that don't come from the file: the frame, its gap, and the bar's side gap. */
-private val KeyGap = 3.dp
-private val FrameWidth = 2.dp
+internal val KeyGap = 3.dp
+internal val FrameWidth = 2.dp
+
+/**
+ * One row's height where a bar isn't the terminal's: the editor's key row draws with the
+ * same keycaps. The extra-keys bar takes its own from keys.toml instead ([ExtraKeysSpec.Sizes]).
+ */
+internal val KeyRowHeight = 40.dp
 
 /** The gap between the bar and the keyboard, and to the screen's sides: the tiles' gap. */
 private val Gap = 6.dp
@@ -199,7 +205,7 @@ private fun StickyKey(
 }
 
 @Composable
-private fun KeyCap(
+internal fun KeyCap(
     modifier: Modifier,
     fill: Color,
     outline: Color? = null,
@@ -216,7 +222,7 @@ private fun KeyCap(
 }
 
 /** Runs [press] for each touch on the key, with a scope to start key repeat or long-press timers in. */
-private suspend fun PointerInputScope.presses(press: suspend AwaitPointerEventScope.(CoroutineScope) -> Unit) =
+internal suspend fun PointerInputScope.presses(press: suspend AwaitPointerEventScope.(CoroutineScope) -> Unit) =
     coroutineScope {
         val scope = this
         awaitEachGesture {
@@ -225,5 +231,5 @@ private suspend fun PointerInputScope.presses(press: suspend AwaitPointerEventSc
         }
     }
 
-private const val RepeatDelay = 400L
-private const val RepeatInterval = 50L
+internal const val RepeatDelay = 400L
+internal const val RepeatInterval = 50L

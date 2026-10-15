@@ -86,10 +86,10 @@ fun HomeScreen(
         engine.launcherAction = { action ->
             when (action) {
                 // "themes" from before the screen was style; widgets still send it.
-                "style", "themes" -> state.styleOpen = true
-                "agents" -> state.agentsOpen = true
-                "store" -> state.storeOpen = true
-                "linux" -> state.linuxOpen = true
+                "style", "themes" -> state.show(SettingsPage.Style)
+                "agents" -> state.show(SettingsPage.Agents)
+                "store" -> state.show(SettingsPage.Store)
+                "linux" -> state.show(SettingsPage.Linux)
                 "drawer" -> state.open()
             }
         }
@@ -150,7 +150,7 @@ fun HomeScreen(
     fun edit(item: WidgetItem) {
         state.editing = null
         val agent = runtime.agents.default
-        if (agent == null) state.agentsOpen = true else runtime.terminal(editWidgetCommand(agent.bin, item.spec), "Edit ${item.spec.name}", agent)
+        if (agent == null) state.show(SettingsPage.Agents) else runtime.terminal(editWidgetCommand(agent.bin, item.spec), "Edit ${item.spec.name}", agent)
     }
 
     // Overlays below are siblings of the pager inside this Box, so they never change the page's size.
@@ -300,11 +300,11 @@ fun HomeScreen(
                             install = engine.installs[item.spec.file.name],
                             onInstall = { engine.installDependencies(item.spec) },
                             waitsForLinux = if (engine.waitsForLinux(item.spec)) linuxState else null,
-                            onInstallLinux = { state.linuxOpen = true },
+                            onInstallLinux = { state.show(SettingsPage.Linux) },
                             onFix = { log ->
                                 val agent = runtime.agents.default
                                 if (agent == null) {
-                                    state.agentsOpen = true
+                                    state.show(SettingsPage.Agents)
                                 } else {
                                     runtime.terminal(fixDependenciesCommand(agent.bin, item.spec, log), "Fix ${item.spec.name}", agent)
                                 }

@@ -13,8 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -163,10 +161,8 @@ private fun UpdatesRow(runtime: Runtime) {
             when {
                 working || updates.checking -> {}
                 (pending?.count ?: 0) > 0 -> BracketAction("update all", Palette.accent, runtime::updateSystem)
-                else -> {
-                    val scope = rememberCoroutineScope()
-                    BracketAction("check", Palette.muted) { scope.launch { updates.check(force = true) } }
-                }
+                // Not a composition scope: this branch leaves composition as soon as checking starts, which would cancel the check.
+                else -> BracketAction("check", Palette.muted, runtime::checkUpdates)
             }
         }
         JobLog(job)

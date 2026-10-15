@@ -78,8 +78,6 @@ import dev.omalauncher.AndroidShortcut
 import androidx.compose.runtime.collectAsState
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.LinuxState
-import androidx.compose.ui.graphics.vector.ImageVector
-import dev.omalauncher.linux.FILES_COMMAND
 import dev.omalauncher.linux.LinuxApp
 
 /** One app in the bar's results. */
@@ -244,12 +242,12 @@ private fun AppHit.actions(handlers: AppHandlers): List<Pair<String, () -> Unit>
             )
     }
 
-/** The app's icon and its silhouette (each null until loaded or if it has none), and a glyph for built-in apps (Files). */
-private fun AppHit.icons(runtime: Runtime): Triple<ImageBitmap?, ImageBitmap?, ImageVector?> =
+/** The app's icon and its silhouette, each null until loaded or if it has none. */
+private fun AppHit.icons(runtime: Runtime): Pair<ImageBitmap?, ImageBitmap?> =
     when (this) {
-        is AppHit.Linux -> Triple(runtime.linuxIcons[app.id], runtime.linuxMasks[app.id], if (app.exec == FILES_COMMAND) Icons.Folder else null)
-        is AppHit.Android -> Triple(runtime.androidApps.icons[app.key], runtime.androidApps.masks[app.key], null)
-        is AppHit.Shortcut -> Triple(runtime.androidApps.icons[shortcut.key], runtime.androidApps.masks[shortcut.key], null)
+        is AppHit.Linux -> runtime.linuxIcons[app.id] to runtime.linuxMasks[app.id]
+        is AppHit.Android -> runtime.androidApps.icons[app.key] to runtime.androidApps.masks[app.key]
+        is AppHit.Shortcut -> runtime.androidApps.icons[shortcut.key] to runtime.androidApps.masks[shortcut.key]
     }
 
 @Composable
@@ -259,8 +257,8 @@ private fun HitCell(
     handlers: AppHandlers,
     selected: Boolean = false,
 ) {
-    val (icon, mask, glyph) = hit.icons(runtime)
-    AppCell(hit.label, icon, mask, onClick = { handlers.launch(hit) }, actions = { hit.actions(handlers) }, shortcuts = { hit.shortcutMenu(handlers) }, glyph = glyph, selected = selected, spoken = hit.spoken, paused = hit.paused(runtime))
+    val (icon, mask) = hit.icons(runtime)
+    AppCell(hit.label, icon, mask, onClick = { handlers.launch(hit) }, actions = { hit.actions(handlers) }, shortcuts = { hit.shortcutMenu(handlers) }, selected = selected, spoken = hit.spoken, paused = hit.paused(runtime))
 }
 
 /** Height of the recent apps strip; home keeps this much room for it above the bar, even while it's empty. */
@@ -296,8 +294,8 @@ internal fun RecentStrip(
     ) {
         val cells: LazyListScope.() -> Unit = {
             items(apps, key = { it.key }) { hit ->
-                val (icon, mask, glyph) = hit.icons(runtime)
-                StripCell(hit.label, icon, mask, onClick = { handlers.launch(hit) }, actions = { hit.actions(handlers) }, shortcuts = { hit.shortcutMenu(handlers) }, glyph = glyph, spoken = hit.spoken, paused = hit.paused(runtime))
+                val (icon, mask) = hit.icons(runtime)
+                StripCell(hit.label, icon, mask, onClick = { handlers.launch(hit) }, actions = { hit.actions(handlers) }, shortcuts = { hit.shortcutMenu(handlers) }, spoken = hit.spoken, paused = hit.paused(runtime))
             }
         }
         if (vertical) {
@@ -319,7 +317,6 @@ private fun StripCell(
     actions: () -> List<Pair<String, () -> Unit>>,
     /** Also built when the menu opens. */
     shortcuts: () -> ShortcutMenu? = { null },
-    glyph: ImageVector? = null,
     /** As in [AppHit.spoken]. */
     spoken: String = label,
     /** As in [AppHit.paused]: drawn dimmed, like stock launchers. */
@@ -346,7 +343,6 @@ private fun StripCell(
     ) {
         val bmp = if (mono) mask else icon
         when {
-            glyph != null -> Image(glyph, label, Modifier.size(size * 0.7f), colorFilter = ColorFilter.tint(Palette.accent))
             // Bare silhouettes and initials sit on a badge, as pinned apps do, so they read on any wallpaper.
             bare && (mono || bmp == null) ->
                 Box(Modifier.size(size).clip(LauncherStyle.shape(size / 2)).background(Palette.surface), contentAlignment = Alignment.Center) {
@@ -539,7 +535,7 @@ internal fun AppPanel(
                                                 BasicText("linux apps", Modifier.weight(1f), style = Mono.copy(color = Palette.muted))
                                                 BracketAction(if (linuxState is LinuxState.Installing) "installing…" else "install linux", Palette.accent) {
                                                     state.closeNow()
-                                                    state.linuxOpen = true
+                                                    state.show(SettingsPage.Linux)
                                                 }
                                             }
                                         }
@@ -679,8 +675,6 @@ private fun AppCell(
     actions: () -> List<Pair<String, () -> Unit>>,
     /** As in [StripCell]. */
     shortcuts: () -> ShortcutMenu? = { null },
-    /** Built-in apps (Files) draw a theme-colored glyph instead of a bitmap. */
-    glyph: ImageVector? = null,
     /** What Enter in the bar would open: outlined in the accent color. */
     selected: Boolean = false,
     /** As in [AppHit.spoken]. */
@@ -708,14 +702,7 @@ private fun AppCell(
         val mono = LauncherStyle.monochromeIcons
         // Badges are circles when rounded, squares with Omarchy's sharp edges.
         val badge = LauncherStyle.shape(26.dp)
-        if (glyph != null) {
-            Box(
-                Modifier.size(52.dp).clip(badge).background(if (mono) Palette.surface else Palette.accent),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(glyph, label, Modifier.size(26.dp), colorFilter = ColorFilter.tint(if (mono) Palette.accent else Palette.background))
-            }
-        } else if (mono && mask != null) {
+        if (mono && mask != null) {
             Box(Modifier.size(52.dp).clip(badge).background(Palette.surface), contentAlignment = Alignment.Center) {
                 Image(mask, spoken, Modifier.size(36.dp), colorFilter = ColorFilter.tint(Palette.accent))
             }

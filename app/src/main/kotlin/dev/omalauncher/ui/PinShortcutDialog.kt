@@ -49,8 +49,8 @@ internal fun PinShortcutDialog(
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton("cancel", Palette.muted, onDismiss)
-            TextButton("add", Palette.accent, onAdd)
+            BracketAction("cancel", Palette.muted, onDismiss)
+            BracketAction("add", Palette.accent, onAdd)
         }
     }
 }

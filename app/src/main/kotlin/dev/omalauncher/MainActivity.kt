@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         applySystemBars(this, Palette.isLight)
         runtime.start()
+        state.onSettings = { page, homePage -> runtime.openSettings(page, homePage) }
         setContent {
             LauncherRoot(runtime, state)
             LaunchedEffect(Palette.isLight) { applySystemBars(this@MainActivity, Palette.isLight) }

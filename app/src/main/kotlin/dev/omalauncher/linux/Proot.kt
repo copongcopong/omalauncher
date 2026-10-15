@@ -151,8 +151,9 @@ class Proot(
                 "OPENCODE_DISABLE_AUTOUPDATE=1",
                 "GROK_DISABLE_AUTOUPDATER=1",
                 "BROWSER=xdg-open",
-                // micro takes taps and scrolling; yazi and git open files with it.
-                "EDITOR=micro",
+                // The launcher's editor; yazi and git open files with it. Its shim falls back to micro.
+                "EDITOR=$EDIT_COMMAND",
+                "VISUAL=$EDIT_COMMAND",
                 "XDG_RUNTIME_DIR=$GUEST_RUNTIME_DIR",
                 "WAYLAND_DISPLAY=${waylandSocket.name}",
                 "XDG_SESSION_TYPE=wayland",

@@ -20,6 +20,22 @@ Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalaun
 - The home screen's grid is 12 columns across the whole inner screen of a foldable, instead
   of the two 6-column pages side by side, so a widget tile can be full width.
 
+## 0.7.2 (versionCode 14) – 2026-10-14
+
+- Text files open in the launcher's own touch-first editor, in the Omarchy theme,
+  which is also Linux's `$EDITOR`: Android's selection and keyboard, line numbers,
+  find, word wrap and a key row above the keyboard. Each file gets its own Recents
+  card, and `git commit` waits until you close the message.
+- Files is an Omarchy-style panel with its own icon, and can create a new file.
+- Settings open in their own window with a Recents card, and come back as you left
+  them after going home or to a terminal mid-install. The launcher's own screens
+  open and close without animations.
+- Terminals no longer flicker when the soft keyboard opens or closes.
+- New coding agents from Omarchy's list: Oh My Pi, Ori, Muse Code and Kimi.
+- Linux no longer installs lazygit, and fastfetch stays out of the drawer.
+- Checking for system updates in settings records the check time again.
+- The widget store's refresh button spins while it reloads.
+
 ## 0.7.1 (versionCode 13) – 2026-10-13
 
 - Websites installed from a browser (Install app, or Add to home screen) show up
