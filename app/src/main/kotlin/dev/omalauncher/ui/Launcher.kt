@@ -239,31 +239,43 @@ private fun DesktopScreen(
 
     // Full-screen panels draw over the bar.
     ThemesOverlay(runtime, state)
-    StyleErrors(runtime.style)
+    StyleErrors(runtime.style, runtime.extraKeys)
 }
 
 /**
- * What style.toml got wrong, at the top over everything, like Hyprland's bar for config errors: errors.txt is out
- * of sight without a terminal. A tap hides the problems shown; new ones show again.
+ * What style.toml or keys.toml got wrong, at the top over everything, like Hyprland's bar for config errors: errors.txt
+ * is out of sight without a terminal. A tap hides the problems shown; new ones show again.
  */
 @Composable
-private fun StyleErrors(style: StyleStore) {
+private fun StyleErrors(
+    style: StyleStore,
+    keys: ExtraKeysStore,
+) {
     var hidden by remember { mutableStateOf(emptySet<String>()) }
-    val shown = style.errors.filterNot { it in hidden }
-    if (shown.isEmpty()) return
+    val blocks =
+        listOf(
+            StyleStore.FILE to style.errors,
+            ExtraKeysStore.FILE to keys.errors,
+        ).filter { it.second.isNotEmpty() }
+    if (blocks.isEmpty()) return
+    fun shown(errors: List<String>) = errors.filterNot { it in hidden }
     Box(Modifier.fillMaxSize().safePadding().padding(PanelGap), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier
                 .widthIn(max = ReadingWidth)
                 .fillMaxWidth()
                 .frame(2.dp, Palette.red, Palette.background)
-                .clickable { hidden = hidden + shown }
+                .clickable { hidden = hidden + blocks.flatMap { it.second } }
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
-            BasicText("style.toml: ${if (shown.size == 1) "1 problem" else "${shown.size} problems"}", style = Mono.copy(color = Palette.red))
-            for (line in shown.take(MAX_ERRORS)) BasicText(line, style = Mono.copy(fontSize = TextSize.Small))
-            val more = if (shown.size > MAX_ERRORS) "${shown.size - MAX_ERRORS} more in errors.txt · " else ""
-            BasicText("${more}tap to hide", style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
+            for ((file, errors) in blocks) {
+                val problems = shown(errors)
+                if (problems.isEmpty()) continue
+                BasicText("$file: ${if (problems.size == 1) "1 problem" else "${problems.size} problems"}", style = Mono.copy(color = Palette.red))
+                for (line in problems.take(MAX_ERRORS)) BasicText(line, style = Mono.copy(fontSize = TextSize.Small))
+                val more = if (problems.size > MAX_ERRORS) "${problems.size - MAX_ERRORS} more · " else ""
+                BasicText("${more}tap to hide", style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
+            }
         }
     }
 }

@@ -35,14 +35,14 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import dev.omalauncher.wayland.Keys
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** One row's height, keycap and the gap around it; the bar is two rows, like Termux's default. */
+/** One row's height, keycap and the gap around it; the bar's rows come from [ExtraKeysStore]. */
 private val RowHeight = 40.dp
 private val KeyGap = 3.dp
 private val FrameWidth = 2.dp
@@ -50,49 +50,12 @@ private val FrameWidth = 2.dp
 /** The gap between the bar and the keyboard, and to the screen's sides: the tiles' gap. */
 private val Gap = 6.dp
 
-/** The bar's full height, gap included; the home screen lifts a typing tile by this much more. */
-val ExtraKeysHeight = RowHeight * 2 + (FrameWidth + KeyGap) * 2 + Gap
-
-private sealed interface ExtraKey
-
-/** A key that sends [code], with [held] down around it; drawn as [label], or as a chevron turned [arrow] degrees from up. */
-private data class Plain(
-    val label: String,
-    val code: Int,
-    val repeats: Boolean = false,
-    val arrow: Float? = null,
-    val held: Int? = null,
-) : ExtraKey
-
-private data class Sticky(
-    val label: String,
-    val modifier: (KeyboardBridge) -> StickyModifier,
-) : ExtraKey
-
-private val Layout: List<List<ExtraKey>> =
-    listOf(
-        listOf(
-            Plain("esc", Keys.KEY_ESC),
-            Plain("/", Keys.KEY_SLASH),
-            Plain("-", Keys.KEY_MINUS),
-            Plain("home", Keys.KEY_HOME),
-            Plain("up", Keys.KEY_UP, repeats = true, arrow = 0f),
-            Plain("end", Keys.KEY_END),
-            Plain("pgup", Keys.KEY_PAGEUP, repeats = true),
-            // Ctrl+Insert and Shift+Insert: the clipboard keys foot, GTK and Qt all know.
-            Plain("copy", Keys.KEY_INSERT, held = Keys.KEY_LEFTCTRL),
-        ),
-        listOf(
-            Plain("tab", Keys.KEY_TAB),
-            Sticky("ctrl") { it.ctrl },
-            Sticky("alt") { it.alt },
-            Plain("left", Keys.KEY_LEFT, repeats = true, arrow = -90f),
-            Plain("down", Keys.KEY_DOWN, repeats = true, arrow = 180f),
-            Plain("right", Keys.KEY_RIGHT, repeats = true, arrow = 90f),
-            Plain("pgdn", Keys.KEY_PAGEDOWN, repeats = true),
-            Plain("paste", Keys.KEY_INSERT, held = Keys.KEY_LEFTSHIFT),
-        ),
-    )
+/**
+ * The bar's full height for [rowCount] rows, gap included, and nothing when it has
+ * no rows; the home screen lifts a typing tile by this much more.
+ */
+fun extraKeysHeight(rowCount: Int): Dp =
+    if (rowCount <= 0) 0.dp else RowHeight * rowCount + (FrameWidth + KeyGap) * 2 + Gap
 
 /**
  * Whether the extra-keys row belongs on screen: only over a docked soft
@@ -112,14 +75,17 @@ fun extraKeysWanted(): Boolean {
 /**
  * The keys a phone keyboard lacks, docked above it for terminals: a framed
  * panel of keycaps, like the tiles above it. Keys never take focus, so the
- * soft keyboard stays up; ctrl and alt latch for the next key on a tap and
- * lock on a long press.
+ * soft keyboard stays up; ctrl, alt and shift latch for the next key on a tap
+ * and lock on a long press. The rows are [ExtraKeysStore]'s, so editing
+ * keys.toml redraws them.
  */
 @Composable
 fun ExtraKeys(
     bridge: KeyboardBridge,
+    rows: List<List<ExtraKey>>,
     modifier: Modifier = Modifier,
 ) {
+    if (rows.isEmpty()) return
     Column(
         modifier
             .fillMaxWidth()
@@ -127,13 +93,13 @@ fun ExtraKeys(
             .frame(FrameWidth, Palette.border, Palette.background, radius = 12.dp)
             .padding(KeyGap),
     ) {
-        for (row in Layout) {
+        for (row in rows) {
             Row(Modifier.fillMaxWidth().height(RowHeight)) {
                 for (key in row) {
                     val cap = Modifier.weight(1f).fillMaxHeight().padding(KeyGap)
                     when (key) {
-                        is Plain -> PlainKey(key, bridge, cap)
-                        is Sticky -> StickyKey(key, key.modifier(bridge), cap)
+                        is Press -> PlainKey(key, bridge, cap)
+                        is LatchKey -> bridge.latch(key.modifier)?.let { StickyKey(key, it, cap) }
                     }
                 }
             }
@@ -143,7 +109,7 @@ fun ExtraKeys(
 
 @Composable
 private fun PlainKey(
-    key: Plain,
+    key: Press,
     bridge: KeyboardBridge,
     modifier: Modifier,
 ) {
@@ -182,7 +148,7 @@ private fun PlainKey(
 
 @Composable
 private fun StickyKey(
-    key: Sticky,
+    key: LatchKey,
     sticky: StickyModifier,
     modifier: Modifier,
 ) {

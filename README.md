@@ -2,12 +2,15 @@
 
 > **Fork.** This is [copongcopong/omalauncher](https://github.com/copongcopong/omalauncher), a fork of
 > [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher) developed on `main`. Two
-> changes so far, both aimed at a foldable's inner screen:
+> changes so far, all aimed at a foldable's inner screen:
 >
 > - The home grid is 12 columns spanning the whole screen instead of two 6-column pages side by
 >   side, so a widget tile can be full width.
 > - The terminal's ⌨ button sits at the bottom left rather than the bottom right, in both the
 >   home screen's terminal tiles and a Linux window's own activity.
+> - The extra-keys bar is a config file, `keys.toml`: its rows and keys are edited in the
+>   terminal (`~/.config/omalauncher/keys/keys.toml`) and redraw on save, no rebuild. The
+>   preset is the bar's old keys plus `^b`, `^a` and `^p`.
 >
 > It builds as `dev.omalauncher.fold`, so it installs beside the Play app. Upstream's release
 > notes are the [CHANGELOG](CHANGELOG.md); this fork's own changes are under `Unreleased` there.

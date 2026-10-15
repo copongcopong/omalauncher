@@ -40,6 +40,7 @@ import dev.omalauncher.linux.shellQuote
 import dev.omalauncher.theme.Style
 import dev.omalauncher.theme.StyleStore
 import dev.omalauncher.theme.ThemeStore
+import dev.omalauncher.ui.ExtraKeysStore
 import dev.omalauncher.ui.Gestures
 import dev.omalauncher.ui.KeyboardBridge
 import dev.omalauncher.ui.TerminalTiles
@@ -75,6 +76,7 @@ class Runtime(
     val wm = WindowManager()
     val server = WaylandServer(proot.waylandSocket.path, wm).also { wm.server = it }
     val keyboard = KeyboardBridge(wm)
+    val extraKeys = ExtraKeysStore(context)
     val terminals = TerminalTiles(this)
     val style = StyleStore(context)
     val terminalFont = TerminalFont(proot, style)
@@ -200,6 +202,7 @@ class Runtime(
             }
             themes.load()
             style.start()
+            extraKeys.start()
             widgets.start()
             // On the first-run screen the download is the screen's job, with progress.
             if (launcherReady) scope.launch { themes.ensureRelease() }

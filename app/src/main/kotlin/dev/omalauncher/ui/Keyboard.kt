@@ -36,7 +36,17 @@ class KeyboardBridge(
 
     val ctrl = StickyModifier(Keys.KEY_LEFTCTRL)
     val alt = StickyModifier(Keys.KEY_LEFTALT)
-    private val sticky = listOf(ctrl, alt)
+    val shift = StickyModifier(Keys.KEY_LEFTSHIFT)
+    private val latches = listOf(ctrl, alt, shift)
+
+    /** The latch a keys.toml name means, for a [LatchKey]; null for a name the file shouldn't have. */
+    fun latch(name: String): StickyModifier? =
+        when (name) {
+            "ctrl" -> ctrl
+            "alt" -> alt
+            "shift" -> shift
+            else -> null
+        }
 
     /** A key sent whole on its press because modifiers were latched; its release is already sent. */
     private var swallowUp: Int? = null
@@ -101,12 +111,12 @@ class KeyboardBridge(
     }
 
     /** Drops every latch, so a modifier left on doesn't surprise the next keystroke. */
-    fun clearLatches() = sticky.forEach { it.latch = Latch.Off }
+    fun clearLatches() = latches.forEach { it.latch = Latch.Off }
 
-    private fun latched() = sticky.any { it.latch != Latch.Off }
+    private fun latched() = latches.any { it.latch != Latch.Off }
 
     private inline fun withLatched(block: () -> Unit) {
-        val held = sticky.filter { it.latch != Latch.Off }
+        val held = latches.filter { it.latch != Latch.Off }
         held.forEach { key(it.code, true) }
         block()
         held.forEach { key(it.code, false) }

@@ -200,7 +200,7 @@ private fun AppWindow(
                 }
             }
             // Below the window rather than over it, so the window shrinks and nothing hides behind the keys.
-            if (extraKeysWanted()) ExtraKeys(runtime.keyboard)
+            if (extraKeysWanted()) ExtraKeys(runtime.keyboard, runtime.extraKeys.rows)
         }
     }
 }

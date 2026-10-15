@@ -202,7 +202,7 @@ fun HomeScreen(
             // Typing in a terminal tile: lift the pages so the tile stays above the keyboard, but not under the status
             // bar; a tile too tall for both gives up the rest at its bottom.
             .graphicsLayer {
-                val keys = if (extraKeys) ExtraKeysHeight.toPx() else 0f
+                val keys = if (extraKeys) runtime.extraKeys.height.toPx() else 0f
                 translationY =
                     -terminals.liftFor(
                         imeHeight = ime.getBottom(density),
@@ -220,7 +220,7 @@ fun HomeScreen(
                 if (terminals.active == null || keyboard == 0) {
                     drawContent()
                 } else {
-                    val keys = if (extraKeys) ExtraKeysHeight.toPx() else 0f
+                    val keys = if (extraKeys) runtime.extraKeys.height.toPx() else 0f
                     val lift = terminals.lift - origin.y
                     clipRect(
                         top = statusBar.getTop(density) + lift,
@@ -356,6 +356,7 @@ fun HomeScreen(
     if (extraKeys) {
         ExtraKeys(
             runtime.keyboard,
+            runtime.extraKeys.rows,
             Modifier
                 .align(Alignment.BottomCenter)
                 .imePadding()
