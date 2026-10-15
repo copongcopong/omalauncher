@@ -6,7 +6,7 @@ Dates are when the build was uploaded to Play.
 
 ## Unreleased
 
-Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)), not yet released:
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher), Omalauncher Z), not yet released:
 
 - The terminal's ⌨ button moved from the bottom right to the bottom left, in the home
   screen's terminal tiles and in a Linux window.

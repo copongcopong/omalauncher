@@ -1,8 +1,8 @@
 # Omalauncher
 
-> **Fork.** This is [copongcopong/omalauncher](https://github.com/copongcopong/omalauncher), a fork of
-> [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher) developed on `main`. Three
-> changes so far, all aimed at a foldable's inner screen:
+> **Omalauncher Z.** This is **Omalauncher Z**, [copongcopong/omalauncher](https://github.com/copongcopong/omalauncher),
+> a fork of [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher) developed on `main`.
+> Three changes so far, all aimed at a foldable's inner screen:
 >
 > - The home grid is 12 columns spanning the whole screen instead of two 6-column pages side by
 >   side, so a widget tile can be full width.
@@ -17,7 +17,7 @@
 > It builds as `dev.omalauncher.fold`, so it installs beside the Play app. Upstream's release
 > notes are the [CHANGELOG](CHANGELOG.md); this fork's own changes are under `Unreleased` there.
 
-## The fork, on the Fold
+## Omalauncher Z, on the Fold
 
 <p>
   <img src="docs/fork/full-width-terminal.jpg" width="32%" alt="A terminal widget spanning the whole inner screen, with three tabs and widgets below it">
