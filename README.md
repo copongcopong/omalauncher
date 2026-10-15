@@ -1,9 +1,16 @@
 # Omalauncher
 
-> **Fork.** This is [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher),
-> forked to make widgets reach the full width of a foldable's inner screen. The home grid is 12
-> columns spanning the whole screen instead of two 6-column pages side by side, so a tile can be
-> full width. It builds as `dev.omalauncher.fold`, so it installs beside the Play app.
+> **Fork.** This is [copongcopong/omalauncher](https://github.com/copongcopong/omalauncher), a fork of
+> [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher) developed on `main`. Two
+> changes so far, both aimed at a foldable's inner screen:
+>
+> - The home grid is 12 columns spanning the whole screen instead of two 6-column pages side by
+>   side, so a widget tile can be full width.
+> - The terminal's ⌨ button sits at the bottom left rather than the bottom right, in both the
+>   home screen's terminal tiles and a Linux window's own activity.
+>
+> It builds as `dev.omalauncher.fold`, so it installs beside the Play app. Upstream's release
+> notes are the [CHANGELOG](CHANGELOG.md); this fork's own changes are under `Unreleased` there.
 
 An Android home screen with the look of [Omarchy](https://omarchy.org), and an
 optional Arch Linux ARM system next to your phone apps. Omalauncher runs the
@@ -64,6 +71,11 @@ adb push ArchLinuxARM-aarch64-latest.tar.gz /sdcard/Android/data/dev.omalauncher
 
 Tests: `./gradlew :owl:test :app:testDebugUnitTest`. `./gradlew :owl:owlJar`
 builds `owl/build/cli/owl.jar`, the checker the widget store's CI runs.
+
+On a Linux box with an Android SDK and a JDK 17 or newer, the same two commands build the fork:
+point `ANDROID_HOME` (or `local.properties`) at the SDK, install the NDK that
+`scripts/fetch-proot.sh` pins, and have `bsdtar` on `PATH` (Debian/Ubuntu: `libarchive-tools`).
+The `main` branch is what gets built.
 
 In debug builds you can launch guest commands with
 `adb shell am start -n dev.omalauncher/.MainActivity --es exec foot`.

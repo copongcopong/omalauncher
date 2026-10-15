@@ -4,6 +4,15 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
+## Unreleased
+
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)), not yet released:
+
+- The terminal's ⌨ button moved from the bottom right to the bottom left, in the home
+  screen's terminal tiles and in a Linux window.
+- The home screen's grid is 12 columns across the whole inner screen of a foldable, instead
+  of the two 6-column pages side by side, so a widget tile can be full width.
+
 ## 0.7.1 (versionCode 13) – 2026-10-13
 
 - Websites installed from a browser (Install app, or Add to home screen) show up
