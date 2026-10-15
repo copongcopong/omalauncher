@@ -159,8 +159,9 @@ object ExtraKeysSpec {
             else -> {
                 val name = parts[0]
                 val code = code(name) ?: return bad(row, token, "\"$name\" isn't a key", problems)
-                val arrow = ARROWS[name]
-                Press(label ?: name, code, starred || arrow != null, arrow)
+                // The four arrows are chevrons and repeat while held; a label draws over the chevron.
+                val arrowKey = name in ARROWS
+                Press(label ?: name, code, starred || arrowKey, if (arrowKey && label == null) ARROWS[name] else null)
             }
         }
     }
@@ -191,7 +192,7 @@ object ExtraKeysSpec {
         #   pgup*              a trailing * repeats the key while it's held
         #   ctrl alt shift     alone: a modifier that latches, a tap holds it for the next
         #                      key, a long press locks it until tapped again
-        #   ^b=ctrl+b          label=spec draws the label instead of the spec
+        #   ^b=ctrl+b          label=spec draws the label instead of the spec, an emoji too
         #   |=shift+backslash  a modified key holds the modifier around it, one modifier only
         #
         # Names: a-z, 0-9, esc backspace tab enter space minus equal slash backslash grave

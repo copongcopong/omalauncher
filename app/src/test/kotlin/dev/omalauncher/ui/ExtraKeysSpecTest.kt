@@ -100,6 +100,16 @@ class ExtraKeysSpecTest {
         assertEquals(43, (rows("""row1 = "\\"""").single().single() as Press).code)
     }
 
+    @Test fun anEmojiIsALabelLikeAnyOther() {
+        val keys = rows("""row1 = "😀=up 🎉=f5 ⏎=enter"""").single().map { (it as Press).label }
+        assertEquals(listOf("😀", "🎉", "⏎"), keys)
+        // A label draws over the chevron an arrow key would have, and the key still repeats.
+        val smile = (rows("""row1 = "😀=up"""").single().single() as Press)
+        assertTrue(smile.arrow == null)
+        assertTrue(smile.repeats)
+        assertEquals(Keys.KEY_UP, smile.code)
+    }
+
     @Test fun aRowThatIsntTextIsAProblem() {
         val parsed = ExtraKeysSpec.parse("row1 = 3")
         assertEquals(emptyList<List<ExtraKey>>(), parsed.rows)
