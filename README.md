@@ -11,7 +11,8 @@
 > - The extra-keys bar is a config file, `keys.toml`: its rows and keys are edited in the
 >   terminal (`~/.config/omalauncher/keys/keys.toml`) and redraw on save, no rebuild. The
 >   preset is the bar's old keys plus `^b`, `^a` and `^p`; a row's `height` and the label
->   `text` are settings too, so the bar can be made shorter.
+>   `text` are settings too, so the bar can be made shorter. See
+>   [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md).
 >
 > It builds as `dev.omalauncher.fold`, so it installs beside the Play app. Upstream's release
 > notes are the [CHANGELOG](CHANGELOG.md); this fork's own changes are under `Unreleased` there.
@@ -60,6 +61,9 @@ supports it), so only text reaches Linux.
 
 Touch input in Linux windows: tap is a left click, long press is a right
 click, drag scrolls; apps with touch support (foot, GTK) get real touch.
+Focusing a terminal raises the soft keyboard with the extra-keys bar above it —
+ctrl, alt and shift and whatever else you put in `keys.toml`; see
+[docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md).
 Hardware keyboard shortcuts: Super+Enter (terminal), Super+Space or
 Super+A (the bar), Super+1..9 (home pages) on the home screen; Super+Enter
 and Super+W (close) in Linux windows.
@@ -86,6 +90,8 @@ In debug builds you can launch guest commands with
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the compositor, rendering, GPU
   acceleration, and how updates reach existing installs
+- [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md): the terminal's extra-keys bar and the
+  `keys.toml` that its rows, keys and height come from
 - [docs/RELEASING.md](docs/RELEASING.md): Play releases and store assets
 - [app/src/main/assets/widgets/README.md](app/src/main/assets/widgets/README.md):
   the widget language
