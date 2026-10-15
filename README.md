@@ -17,6 +17,31 @@
 > It builds as `dev.omalauncher.fold`, so it installs beside the Play app. Upstream's release
 > notes are the [CHANGELOG](CHANGELOG.md); this fork's own changes are under `Unreleased` there.
 
+## The fork, on the Fold
+
+<p>
+  <img src="docs/fork/full-width-terminal.jpg" width="32%" alt="A terminal widget spanning the whole inner screen, with three tabs and widgets below it">
+  <img src="docs/fork/keys-bar.jpg" width="32%" alt="The extra-keys bar over the soft keyboard, two rows from keys.toml, while an agent edits the file">
+  <img src="docs/fork/full-width-widgets.jpg" width="32%" alt="Full-width home widgets: date and weather, system info, hacker news, calendar and a battery heatmap">
+</p>
+
+Left to right: a terminal tile across the whole inner screen with three tabs; the extra-keys
+bar over the soft keyboard while an agent edits `keys.toml`; and widgets laid out full width,
+here the date and weather, system info, Hacker News, a calendar and a battery heatmap.
+
+▶ **[The demo, on YouTube](https://youtube.com/shorts/D3fvVJxXpGE)** — a short screen
+recording of the fork running on the Fold.
+
+Two things in those screenshots aren't Omalauncher's:
+
+- **The trackpad overlay is a separate app**, [So7o Z Trackpad](https://github.com/jan5o7o/ztrackpad)
+  (`app.so7o.ztrackpad`), which draws its own rails, panels and pointer over whatever is on
+  screen. In the screenshots that's the letters down the left edge, the round buttons on the
+  right, and the `MOVE · SZ` panel with its arrow pad. Omalauncher neither ships it nor
+  needs it — the launcher's own touches work without it.
+- The status-bar and navigation-bar icons are Android's; the `⌨` button inside a window is
+  the fork's, and now sits at the bottom left.
+
 An Android home screen with the look of [Omarchy](https://omarchy.org), and an
 optional Arch Linux ARM system next to your phone apps. Omalauncher runs the
 system under proot, without root, and is its Wayland compositor: every Linux
