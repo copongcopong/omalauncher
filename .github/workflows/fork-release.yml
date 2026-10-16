@@ -108,9 +108,16 @@ jobs:
       - name: Notes
         run: |
           cat > "$RUNNER_TEMP/notes.md" <<'EOF'
-          Omalauncher Z, built from upstream 0.7.2 with this fork's changes: a 12-column home
-          grid across a foldable's inner screen, the keyboard button at a window's bottom left,
-          and the terminal's extra keys in `keys.toml`, editable in the guest and redrawn on save.
+          Omalauncher Z, on upstream 0.7.2 plus its next 22 commits (owl 8, apps in the widget
+          store, named folders, Turnip on Adreno), with this fork's changes:
+
+          - a 12-column home grid across a foldable's inner screen, so a widget tile can be full width
+          - the keyboard button at a window's bottom left
+          - the terminal's extra keys in `keys.toml`, editable in the guest and redrawn on save
+          - a terminal's background can be see-through (`terminal.opacity`), with the text left solid
+
+          The changelog has the whole list:
+          https://github.com/copongcopong/omalauncher/blob/main/CHANGELOG.md
 
           arm64 only, Android 10 or newer. It builds as `dev.omalauncher.fold`, so it installs
           beside the Play release; install with `adb install -r OmalauncherZ-*-arm64.apk`, or by

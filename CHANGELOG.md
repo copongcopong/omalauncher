@@ -4,9 +4,12 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
-## Unreleased
+## 0.7.3 (versionCode 14) – 2026-10-16
 
-Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher), Omalauncher Z), not yet released:
+Omalauncher Z, this fork's first release with the terminal work in it, on upstream 0.7.2 plus its
+next 22 commits. Signed with the debug key, so it installs over an earlier fork build.
+
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)):
 
 - The terminal's ⌨ button moved from the bottom right to the bottom left, in the home
   screen's terminal tiles and in a Linux window.
@@ -23,6 +26,15 @@ Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalaun
   [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md), the format's reference.
 - The home screen's grid is 12 columns across the whole inner screen of a foldable, instead
   of the two 6-column pages side by side, so a widget tile can be full width.
+
+From upstream, merged into this release:
+
+- Widgets can draw images and play sounds from the web, and SVGs as vectors (owl 8).
+- The widget store lists apps, with a preview of each one's own window in every theme.
+- Widgets can read your installed Android apps as `android.apps`.
+- Folders can be named in their own header.
+- Turnip GPU acceleration on Adreno phones, with the patched Mesa bundle shipped in the APK.
+- The status bar on the home screen can be hidden.
 
 ## 0.7.2 (versionCode 14) – 2026-10-14
 
