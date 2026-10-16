@@ -2,6 +2,7 @@ package dev.omalauncher.widgets.lang
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -202,6 +203,48 @@ class LangTest {
         assertTrue(s.headers != null && s.status)
         assertEquals(listOf("http GET https://x.test/a"), p.commands)
         assertTrue(compileError("widget {\nsource w = http(\"file:///etc/passwd\")\nText { text: w }\n}").contains("http:// or https://"))
+    }
+
+    @Test fun imagesFromTheWeb() {
+        val p =
+            Compiler.compile(
+                """
+                app "a" {
+                  meta { owl: 8 }
+                  state id = 1
+                  let base = "https://x.test/art/"
+                  Image { src: "https://x.test/logo.svg" }
+                  Image { src: "${'$'}{base}${'$'}{id}.svg" }
+                  Canvas { image("https://x.test/p/" + id, 0, 0, 10, 10) }
+                  Image { src: "~/pics/a.png" }
+                }
+                """.trimIndent(),
+            )
+        assertEquals(listOf("image GET https://x.test/logo.svg", "image GET https://x.test/art/…", "image GET https://x.test/p/…"), p.commands)
+        assertTrue(!p.needsLinux)
+        assertTrue(compileError("widget {\nmeta { owl: 7 }\nImage { src: \"https://x.test/a.png\" }\n}").contains("an image from the web needs owl 8"))
+        assertTrue(compileError("app \"a\" {\nmeta { owl: 8 }\nImage { src: \"http://x.test/a.png\" }\n}").contains("https only"))
+    }
+
+    @Test fun sounds() {
+        val p =
+            Compiler.compile(
+                """
+                app "a" {
+                  meta { owl: 8 }
+                  state id = 1
+                  let base = "https://x.test/audio/"
+                  every 5s { sound("${'$'}{base}${'$'}{id}.mp3") }
+                  Button { text: "stop"; onTap: sound("stop") }
+                  Button { text: "chime"; onTap: sound("~/chime.ogg") }
+                  Button { text: "done"; onTap: sound(id > 1 ? "${'$'}{base}done.mp3" : null) }
+                }
+                """.trimIndent(),
+            )
+        assertEquals(listOf("sound GET https://x.test/audio/…", "sound GET https://x.test/audio/done.mp3"), p.commands)
+        assertTrue(!p.needsLinux)
+        assertTrue(compileError("widget {\nmeta { owl: 7 }\nonTap: sound(\"stop\")\nText { text: \"x\" }\n}").contains("sound needs owl 8"))
+        assertTrue(compileError("app \"a\" {\nmeta { owl: 8 }\nButton { text: \"x\"; onTap: sound(\"http://x.test/a.mp3\") }\n}").contains("sounds load over https only"))
     }
 
     @Test fun forLoopsAndLocalLets() {
@@ -454,6 +497,14 @@ class LangTest {
         assertEquals(Str("center"), el.props["align"]!!.const)
     }
 
+    @Test fun enumWordsWinOverNamesTheyShadow() {
+        val p = Compiler.compile("widget {\n  source top = clock every 1m\n  component Stat(label) { Text { text: label; style: label } }\n  Row { align: top; Stat { label: \"cpu\" } }\n}")
+        val row = p.root.single() as WNode.Element
+        assertEquals(Str("top"), row.props["align"]!!.const)
+        val text = (row.children.single() as WNode.Use).body.single() as WNode.Element
+        assertEquals(Str("label"), text.props["style"]!!.const)
+    }
+
     @Test fun colorLiteralsAndHelpers() {
         val p = Compiler.compile("widget { Text { text: \"x\"; color: #ff000080 } }")
         val c = (p.root.single() as WNode.Element).props["color"]!!.const as Col
@@ -527,6 +578,71 @@ class LangTest {
         assertTrue(compileError("widget {\n meta { owl: 6 }\n source m = android.modes\n Text { text: 1 } }").contains("android.modes needs owl 7"))
         assertTrue(compileError("widget {\n meta { owl: 6 }\n Text { text: 1; onTap: haptic() } }").contains("haptic needs owl 7"))
         assertTrue(compileError("widget {\n meta { owl: 6 }\n Text { text: 1; onTap: share(\"x\") } }").contains("share needs owl 7"))
+    }
+
+    @Test fun androidApps() {
+        val p = Compiler.compile("widget {\n meta { owl: 8 }\n source a = android.apps every 1m\n Image { src: a[0].icon; onTap: androidApp(a[0].key) } }")
+        assertEquals(listOf("android.apps"), p.globals.map { (it as Global.Source).kind })
+        assertEquals(listOf("read installed Android apps (names, packages and icons)"), p.commands)
+        assertTrue(compileError("widget {\n meta { owl: 7 }\n source a = android.apps\n Text { text: 1 } }").contains("android.apps needs owl 8"))
+    }
+
+    @Test fun appsGoBackALevelWhileBackHolds() {
+        val app = Compiler.compile("app \"x\" {\n meta { owl: 8 }\n state page = \"\"\n title: page == \"\" ? \"x\" : page\n back: page != \"\"\n onBack: page = \"\"\n Text { text: 1; onTap: page = \"tar\" } }")
+        val host = TestHost(app)
+        val env = Env.root(host)
+        assertFalse(app.back!!(env).truthy)
+        (app.screen!![0] as WNode.Element).handlers["onTap"]!!.run(env, emptyList())
+        assertTrue(app.back!!(env).truthy)
+        assertEquals("tar", app.screenTitle!!(env).toString())
+        app.onBack!!.run(env, emptyList())
+        assertFalse(app.back!!(env).truthy)
+        assertNull(Compiler.compile("app {\n meta { owl: 8 }\n Text { text: 1 } }").onBack)
+    }
+
+    @Test fun appsAreScreensOfTheirOwn() {
+        val app = Compiler.compile("app \"Notes\" {\n meta { owl: 8 }\n title: \"My notes\"\n state n = 0\n Column { Text { text: n }\n Button { text: \"x\"; onTap: close() } } }")
+        assertEquals(OwlKind.App, app.kind)
+        assertEquals("Notes", app.name)
+        assertTrue(app.root.isEmpty())
+        assertEquals(1, app.screen!!.size)
+        assertEquals("My notes", app.screenTitle!!(Env.root(TestHost(app))).toString())
+        val plain = Compiler.compile("app {\n meta { owl: 8 }\n Input { focus: true } }")
+        assertEquals("app", plain.name)
+        assertEquals(OwlKind.Widget, Compiler.compile("widget {\n Text { text: 1 } }").kind)
+
+        assertTrue(compileError("app {\n Text { text: 1 } }").contains("needs owl 8"))
+        assertTrue(compileError("app {\n meta { owl: 8 }\n size: 2x2\n Text { text: 1 } }").contains("only takes title, icon and back"))
+        assertTrue(compileError("app {\n meta { owl: 8 }\n onTap: close()\n Text { text: 1 } }").contains("handlers go on the nodes"))
+        assertTrue(compileError("app {\n meta { owl: 8 }\n back: true\n Text { text: 1 } }").contains("back and onBack go together"))
+        assertTrue(compileError("app {\n meta { owl: 8 }\n onBack: close()\n Text { text: 1 } }").contains("back and onBack go together"))
+        assertTrue(compileError("app {\n meta { owl: 8 }\n screen { Text { text: 1 } } }").contains("is a screen already"))
+        assertTrue(compileError("app {\n meta { owl: 8 }\n Text { text: 1; onTap: screen() } }").contains("close() closes it"))
+        assertTrue(compileError("app {\n meta { owl: 8 }\n }").contains("needs at least one node"))
+        assertTrue(compileError("gadget {\n Text { text: 1 } }").contains("an owl file starts with"))
+        assertEquals(OwlKind.App, OwlKind.of("// notes\n/* a\n b */ app \"x\" { Text { text: \"unterminated } }"))
+        assertEquals(OwlKind.App, OwlKind.of("  app{"))
+        assertEquals(OwlKind.Widget, OwlKind.of("panel {"))
+        assertEquals(OwlKind.Widget, OwlKind.of("application {"))
+    }
+
+    @Test fun appIconsAreSvgInTheFile() {
+        val svg = "<svg viewBox=\"0 0 48 48\"><circle cx=\"24\" cy=\"24\" r=\"20\" fill=\"currentColor\"/></svg>"
+        val app = Compiler.compile("app \"x\" {\n meta { owl: 8 }\n title: \"X\"\n icon: \"\"\"\n  $svg\n \"\"\"\n Text { text: 1 } }")
+        assertEquals(svg, app.icon)
+        // title still comes from title:, wherever icon: is
+        assertEquals("X", app.screenTitle!!(Env.root(TestHost(app))).toString())
+        assertEquals(null, Compiler.compile("app {\n meta { owl: 8 }\n Text { text: 1 } }").icon)
+        assertTrue(compileError("app {\n meta { owl: 8 }\n icon: \"logo.png\"\n Text { text: 1 } }").contains("one <svg>"))
+        // Drawn before the app runs: no expressions.
+        assertTrue(compileError("app {\n meta { owl: 8 }\n state c = \"red\"\n icon: \"<svg fill='${'$'}{c}'></svg>\"\n Text { text: 1 } }").contains("an SVG in a string"))
+        // Or an image embedded as an asset.
+        val png = java.util.Base64.getEncoder().encodeToString(byteArrayOf(-119, 80, 78, 71))
+        val withPng = Compiler.compile("app {\n meta { owl: 8 }\n asset logo = base64\"$png\"\n icon: logo\n Text { text: 1 } }")
+        assertEquals(listOf(-119, 80, 78, 71), withPng.iconImage!!.map { it.toInt() })
+        assertEquals(null, withPng.icon)
+        assertTrue(compileError("app {\n meta { owl: 8 }\n icon: logo\n Text { text: 1 } }").contains("names an asset"))
+        assertTrue(compileError("app {\n meta { owl: 8 }\n icon: \"<svg>${"x".repeat(17000)}</svg>\"\n Text { text: 1 } }").contains("over 16 KB"))
     }
 
     @Test fun androidNotificationsAndVolume() {

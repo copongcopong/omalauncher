@@ -22,8 +22,11 @@ class Compiler private constructor(
          * instead of failing on what they don't know. Bump it with every
          * addition a widget could depend on: nodes, properties, builtins.
          */
-        const val LEVEL = 7
+        const val LEVEL = 8
         private const val MAX_ASSET_BYTES = 2 shl 20
+
+        /** An app icon is a shape or two drawn in SVG, not a picture. */
+        private const val MAX_ICON_CHARS = 16 * 1024
 
         fun compile(src: String): Program =
             try {
@@ -106,7 +109,11 @@ class Compiler private constructor(
                 // owl 6: properties, named Node.property; values in commands, quoted; the launcher's corner style.
                 listOf("Input.focus", "sh", "corners").associateWith { 6 } +
                 // owl 7: more of the phone, without new permissions.
-                listOf("android.alarm", "android.modes", "torch", "share", "haptic").associateWith { 7 }
+                listOf("android.alarm", "android.modes", "torch", "share", "haptic").associateWith { 7 } +
+                // owl 8: apps, files that aren't tiles; the phone's apps as a list; images and sounds from the web.
+                listOf("app \"…\" { }", "android.apps", WEB_IMAGE, "sound").associateWith { 8 }
+
+        private const val WEB_IMAGE = "an image from the web"
 
         // No onLongPress: long-press belongs to the home screen, which lifts the tile to move it.
         /**
@@ -125,8 +132,8 @@ class Compiler private constructor(
         /** What triggers bind in their statements. */
         private val TRIGGER_PARAMS = mapOf("on" to listOf("value", "old"))
 
-        /** Data only Android has; battery, media, notifications, volume, alarm and modes update as they change, device is fixed. */
-        val ANDROID = setOf("battery", "device", "media", "notifications", "volume", "system", "alarm", "modes")
+        /** Data only Android has; battery, media, notifications, volume, alarm and modes update as they change, device is fixed, system and apps are polled. */
+        val ANDROID = setOf("battery", "device", "media", "notifications", "volume", "system", "alarm", "modes", "apps")
 
         /** media("...") commands. */
         val MEDIA = setOf("toggle", "play", "pause", "next", "previous", "open")
@@ -250,6 +257,9 @@ class Compiler private constructor(
     /** Where a handler calls screen() or close(), which need a screen { } block. */
     private var screenAction: Int? = null
 
+    /** Where a handler calls screen(), which an app has no use for. */
+    private var openScreen: Int? = null
+
     /** The newest feature used, from [SINCE], and where: the widget must declare at least its version. */
     private var needs: Triple<Int, String, Int>? = null
 
@@ -273,7 +283,7 @@ class Compiler private constructor(
         val level = levelField?.let { constant(it.value, "meta values").num()?.toInt() ?: fail("owl: takes a number, like owl: 1", it.pos) } ?: 1
         if (level > LEVEL) fail("this widget needs owl $level; the launcher supports up to $LEVEL, so update the launcher", levelField!!.pos)
         if (body.animations.isNotEmpty()) fail("animate belongs inside a node", body.animations[0].pos)
-        for (h in body.handlers) if (h.name != "onTap") fail("a widget only takes onTap at the top level", h.pos)
+        for (h in body.handlers) if (h.name != "onTap" && !(ast.kind == OwlKind.App && h.name == "onBack")) fail("a widget only takes onTap at the top level", h.pos)
 
         // Sources, state and assets first: lets and components may use any of them.
         for (d in body.decls) {
@@ -306,9 +316,10 @@ class Compiler private constructor(
         val triggers = body.decls.filterIsInstance<Decl.Trigger>().map(::trigger)
 
         val props = body.props.associateBy { it.name }
-        for (p in body.props) if (p.name !in WIDGET_PROPS) fail("unknown widget property '${p.name}' (${WIDGET_PROPS.joinToString()})", p.pos)
         val meta = body.decls.filterIsInstance<Decl.Meta>().flatMap { it.fields }.associate { it.name to constant(it.value, "meta values") }
         val requires = requires(body.decls.filterIsInstance<Decl.Requires>().flatMap { it.fields })
+        if (ast.kind == OwlKind.App) return app(body, meta, level, requires, globals.map { it!! }, triggers)
+        for (p in body.props) if (p.name !in WIDGET_PROPS) fail("unknown widget property '${p.name}' (${WIDGET_PROPS.joinToString()})", p.pos)
         val screens = body.items.filter { it is Item.Node && it.type == "screen" }.map { it as Item.Node }
         if (screens.size > 1) fail("a widget has one screen { }", screens[1].pos)
         inScreen = false
@@ -344,6 +355,81 @@ class Compiler private constructor(
             animated = animated,
             terminal = terminal,
             nodeCount = tileNodes,
+        )
+    }
+
+    /**
+     * An app: the file is a screen of its own, opened from the app drawer, so its nodes are the screen's and
+     * there's no tile, no place on a page, and no screen { } inside it.
+     */
+    private fun app(
+        body: Body,
+        meta: Map<String, Value>,
+        level: Int,
+        requires: Map<String, List<String>>,
+        globals: List<Global>,
+        triggers: List<Trigger>,
+    ): Program {
+        since("app \"…\" { }", 0)
+        for (p in body.props) if (p.name !in setOf("title", "icon", "back")) fail("an app only takes title, icon and back (no size or page: it isn't a tile)", p.pos)
+        // The drawer draws it before the app runs, so it's fixed in the file, not an expression: an SVG, or an asset's image.
+        val iconProp = body.props.firstOrNull { it.name == "icon" }
+        val iconImage =
+            (iconProp?.value as? Expr.Name)?.let { n ->
+                (globals.firstOrNull { it is Global.Asset && it.name == n.name } as? Global.Asset)?.bytes
+                    ?: fail("icon names an asset: asset logo = base64\"...\" and icon: logo", n.pos)
+            }
+        val icon =
+            iconProp?.takeIf { iconImage == null }?.let { p ->
+                val svg = ((p.value as? Expr.Lit)?.value as? Str)?.v?.trim()
+                    ?: fail("icon is an SVG in a string (icon: \"\"\"<svg ...>...</svg>\"\"\") or an asset's name (icon: logo)", p.pos)
+                if (!svg.startsWith("<svg") || !svg.endsWith("</svg>")) fail("icon should be one <svg>...</svg> element", p.pos)
+                if (svg.length > MAX_ICON_CHARS) fail("icon is over ${MAX_ICON_CHARS / 1024} KB; keep it a simple shape, or use a PNG asset", p.pos)
+                svg
+            }
+        body.handlers.firstOrNull { it.name != "onBack" }?.let { fail("handlers go on the nodes inside an app; only onBack goes at its top", it.pos) }
+        // Back goes up a level inside the app while `back` is true, and closes it otherwise.
+        val backProp = body.props.firstOrNull { it.name == "back" }
+        val onBackHandler = body.handlers.firstOrNull { it.name == "onBack" }
+        if ((backProp == null) != (onBackHandler == null)) {
+            fail("back and onBack go together: back: view != \"list\" says when Back goes up a level, onBack: view = \"list\" does it", (backProp?.pos ?: onBackHandler!!.pos))
+        }
+        body.items.firstOrNull { it is Item.Node && it.type == "screen" }?.let { fail("an app is a screen already: put its nodes at the top, without screen { }", it.pos) }
+        nodes = 0
+        maxNodes = MAX_SCREEN_NODES
+        inScreen = true
+        val tree = items(body.items, root, Children.UI)
+        if (tree.isEmpty()) fail("an app needs at least one node, like Text { text: \"hi\" }", 0)
+        openScreen?.let { fail("screen() opens a widget's screen { }; an app is open already, and close() closes it", it) }
+        needs?.let { (v, feature, pos) -> if (level < v) fail("$feature needs owl $v: add meta { owl: $v }", pos) }
+        return Program(
+            name = ast.name ?: "app",
+            meta = meta,
+            level = level,
+            size = null,
+            minSize = 1 to 1,
+            page = 1,
+            order = 0,
+            padding = 12.0,
+            background = null,
+            globals = globals,
+            root = emptyList(),
+            screen = tree,
+            screenTitle = body.props.firstOrNull { it.name == "title" }?.let { ex(it.value, root) },
+            back = backProp?.let { ex(it.value, root) },
+            onBack = onBackHandler?.let { handler(it, root) },
+            onTap = null,
+            triggers = triggers,
+            commands = commands.toList(),
+            requires = requires,
+            needsLinux = guest || requires.isNotEmpty(),
+            programs = scripts.flatMap(ShellWords::programs).toSortedSet(),
+            animated = animated,
+            terminal = terminal,
+            nodeCount = nodes,
+            kind = ast.kind,
+            icon = icon,
+            iconImage = iconImage,
         )
     }
 
@@ -425,6 +511,54 @@ class Compiler private constructor(
         return out?.distinct()?.takeIf { it.size <= MAX_SHAPES }
     }
 
+    /**
+     * An image src or a sound that is, or starts as, an https URL: it needs owl 8, and it's listed like
+     * http(...), as "[what] GET <url>", or the fixed start of it and "…" when the rest comes from widget
+     * values. A URL that is all a value (one from a source's JSON) can't be known here.
+     */
+    private fun webFile(
+        e: Expr,
+        s: Scope,
+        what: String,
+    ) {
+        // Each way it can turn out: sound(voice ? "https://..." : null) plays that URL.
+        if (e is Expr.Cond) return listOf(e.a, e.b).forEach { webFile(it, s, what) }
+        val whole = constText(e, s)
+        val start = whole ?: constantStart(e, s)
+        if (start.startsWith("http://")) fail("${what}s load over https only", e.pos)
+        if (!start.startsWith("https://")) return
+        if (what == "image") since(WEB_IMAGE, e.pos)
+        commands += "$what GET " + (whole ?: "$start…")
+    }
+
+    /** The text [e] starts with whatever its values turn out to be: "https://x.test/" for "https://x.test/${id}.svg". */
+    private fun constantStart(
+        e: Expr,
+        s: Scope,
+    ): String =
+        when (e) {
+            is Expr.Interp -> {
+                val out = StringBuilder()
+                for (p in e.parts) {
+                    val c = constText(p, s) ?: return out.append(constantStart(p, s)).toString()
+                    out.append(c)
+                }
+                out.toString()
+            }
+            is Expr.Binary -> if (e.op == "+") constText(e.a, s)?.let { it + constantStart(e.b, s) } ?: constantStart(e.a, s) else ""
+            else -> constText(e, s).orEmpty()
+        }
+
+    /** [e]'s text if it's fixed: a literal, a name for a top-level let that is one (`let base = "https://..."`), or "${base}a.svg". */
+    private fun constText(
+        e: Expr,
+        s: Scope,
+    ): String? {
+        if (e is Expr.Interp) return e.parts.map { constText(it, s) ?: return null }.joinToString("")
+        val c = ex(e, s).const ?: (e as? Expr.Name)?.let { n -> (lookup(n.name, s) as? Ref.Slot)?.let { (globals[it.index] as? Global.Let)?.value?.const } }
+        return if (c is Str || c is Num) c.toString() else null
+    }
+
     private fun constant(
         e: Expr,
         what: String,
@@ -483,6 +617,7 @@ class Compiler private constructor(
                 since("android.${e.name}", e.pos)
                 // Listed with the commands, so the store shows it before anyone installs the widget.
                 if (e.name == "notifications") commands += "read Android notifications (apps, titles and text)"
+                if (e.name == "apps") commands += "read installed Android apps (names, packages and icons)"
                 Global.Source(d.name, "android.${e.name}", null, (every ?: 60.0).coerceAtLeast(1.0), false, 0)
             }
             else -> fail("a source is cmd(\"...\"), stream(\"...\"), http(\"...\"), file(\"...\"), clock, or android.${ANDROID.joinToString("/")}", e.pos)
@@ -617,6 +752,7 @@ class Compiler private constructor(
         if (!op.group && it.body != null) fail("${c.name}(...) takes no { } body", c.pos)
         for ((k, v) in c.named) if (k !in DRAW_NAMED) fail("unknown option '$k' (${DRAW_NAMED.joinToString()})", v.pos)
         since(c.name, c.pos)
+        if (c.name == "image") webFile(c.args[0], scope, "image")
         nodes++
         return WNode.Draw(
             c.name,
@@ -672,6 +808,7 @@ class Compiler private constructor(
             }
             guest = true
         }
+        if (n.type == "Image") body.props.firstOrNull { it.name == "src" }?.let { webFile(it.value, scope, "image") }
         // Shaders get `time` whether they use it or not.
         if (n.type == "Shader") animated = true
         if (kind.children == Children.NONE && body.items.isNotEmpty()) fail("${n.type} can't hold other nodes", body.items[0].pos)
@@ -708,7 +845,9 @@ class Compiler private constructor(
         scope: Scope,
     ): Ev? {
         val options = ENUMS[name] ?: return null
-        if (e is Expr.Name && e.name in options && lookup(e.name, scope) == null) return Ev.of(Str(e.name))
+        // The word, even when a let, state, source or parameter has its name: `align: top` beside
+        // `source top` aligns rows instead of reading (and stringifying) the source in every one.
+        if (e is Expr.Name && e.name in options) return Ev.of(Str(e.name))
         return null
     }
 
@@ -763,7 +902,9 @@ class Compiler private constructor(
                             (args[0].const as? Str)?.v?.let { c -> if (c !in NOTIFICATION) fail("notification takes ${NOTIFICATION.joinToString()} and a notification's key", call.pos) }
                         }
                         since(call.name, call.pos)
+                        if (call.name == "sound") webFile(call.args[0], inner, "sound")
                         if (call.name == "screen" || call.name == "close") screenAction = screenAction ?: call.pos
+                        if (call.name == "screen") openScreen = openScreen ?: call.pos
                         if (call.name in setOf("run", "terminal", "app")) {
                             listCommand(call.args[0], args[0], inner, "${call.name}(…)")
                             // A tap on terminal(...) or app(...) without Linux offers to install it; run(...) would fail unseen.

@@ -79,7 +79,8 @@ fun OverlayPanel(
 /** [OverlayPanel]'s frame without the scrim, for a screen of its own (Files): [title] fills the header up to the [actions] and close mark. */
 @Composable
 fun PanelFrame(
-    onClose: () -> Unit,
+    /** The ✕; null for a window Android closes (Back, Recents), like an owl app's. */
+    onClose: (() -> Unit)?,
     modifier: Modifier = Modifier,
     title: @Composable () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
@@ -95,7 +96,7 @@ fun PanelFrame(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f)) { title() }
             actions()
-            Symbol(Glyph.Close, Palette.red, Modifier.clickable(onClick = onClose).padding(8.dp), TextSize.Title)
+            if (onClose != null) Symbol(Glyph.Close, Palette.red, Modifier.clickable(onClick = onClose).padding(8.dp), TextSize.Title)
         }
         Spacer(Modifier.height(8.dp))
         if (contentWidth == Dp.Unspecified) {
@@ -109,6 +110,20 @@ fun PanelFrame(
 /** A panel's title, in the accent color. */
 @Composable
 fun PanelTitle(text: String) = BasicText(text, style = Mono.copy(color = Palette.accent, fontSize = TextSize.Title), maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+/** A [PanelTitle] that, with [onBack], has a back chevron before it; the chevron and the title both go back. */
+@Composable
+fun BackTitle(
+    text: String,
+    onBack: (() -> Unit)?,
+) {
+    if (onBack == null) return PanelTitle(text)
+    Row(Modifier.clickable(onClick = onBack).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        // The font subset has no left chevron; the right one turned around is the same shape.
+        Symbol(Glyph.ChevronRight, Palette.accent, Modifier.padding(end = 6.dp).rotate(180f), TextSize.Title)
+        PanelTitle(text)
+    }
+}
 
 /** An [OverlayPanel] action drawn with one of [Icons]: muted, the size of [RefreshButton]. */
 @Composable
