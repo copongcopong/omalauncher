@@ -247,18 +247,23 @@ typedef struct {
     ANativeWindow_Buffer buf;
     ARect dirty;
     int locked;
+    // RGBX with every pixel filled (SurfaceFlinger needn't blend) or RGBA carrying the clients'
+    // alpha, so a terminal's translucent background shows the wallpaper behind its window.
+    int translucent;
 } Window;
 
-JNIEXPORT jlong JNICALL FN(windowCreate)(JNIEnv *env, jclass cls, jobject surface, jint width, jint height) {
+JNIEXPORT jlong JNICALL FN(windowCreate)(JNIEnv *env, jclass cls, jobject surface, jint width, jint height,
+                                         jboolean translucent) {
     ANativeWindow *w = ANativeWindow_fromSurface(env, surface);
     if (!w) return 0;
-    // Opaque: we fill every pixel, so SurfaceFlinger needn't blend the window.
-    if (ANativeWindow_setBuffersGeometry(w, width, height, WINDOW_FORMAT_RGBX_8888) != 0) {
+    int format = translucent ? WINDOW_FORMAT_RGBA_8888 : WINDOW_FORMAT_RGBX_8888;
+    if (ANativeWindow_setBuffersGeometry(w, width, height, format) != 0) {
         ANativeWindow_release(w);
         return 0;
     }
     Window *win = calloc(1, sizeof(Window));
     win->window = w;
+    win->translucent = translucent;
     return (jlong) (intptr_t) win;
 }
 
@@ -273,8 +278,7 @@ JNIEXPORT void JNICALL FN(windowRelease)(JNIEnv *env, jclass cls, jlong ptr) {
 // Locks the window for drawing [dirty] (left, top, right, bottom), which
 // Android may grow when it can't keep the previous frame's pixels; the rect
 // actually locked is written back. Fills it with [background] (0xAARRGGBB).
-JNIEXPORT jboolean JNICALL FN(windowBegin)(JNIEnv *env, jclass cls, jlong ptr, jintArray jdirty, jint background) {
-    Window *win = (Window *) (intptr_t) ptr;
+JNIEXPORT jboolean JNICALL FN(windowBegin)(JNIEnv *env, jclass cls, jlong ptr, jintArray jdirty, jint background) {    Window *win = (Window *) (intptr_t) ptr;
     jint d[4];
     (*env)->GetIntArrayRegion(env, jdirty, 0, 4, d);
     ARect r = {.left = d[0], .top = d[1], .right = d[2], .bottom = d[3]};
@@ -288,8 +292,18 @@ JNIEXPORT jboolean JNICALL FN(windowBegin)(JNIEnv *env, jclass cls, jlong ptr, j
     d[0] = r.left, d[1] = r.top, d[2] = r.right, d[3] = r.bottom;
     (*env)->SetIntArrayRegion(env, jdirty, 0, 4, d);
 
+    // The buffer wants bytes R,G,B,A (0xAABBGGRR). An opaque window forces alpha 255: it's RGBX
+    // and every pixel gets filled, so nothing behind it shows through. A translucent one keeps
+    // the caller's alpha, premultiplied, so a fully transparent fill clears to nothing and the
+    // clients' own translucent pixels are what SurfaceFlinger blends with what's behind.
     uint32_t bg = (uint32_t) background;
-    uint32_t fill = 0xff000000u | ((bg & 0xffu) << 16) | (bg & 0xff00u) | ((bg >> 16) & 0xffu);
+    uint32_t ca = bg >> 24, cr = (bg >> 16) & 0xffu, cg = (bg >> 8) & 0xffu, cb = bg & 0xffu;
+    uint32_t fill;
+    if (win->translucent) {
+        fill = (ca << 24) | ((cb * ca / 255u) << 16) | ((cg * ca / 255u) << 8) | (cr * ca / 255u);
+    } else {
+        fill = 0xff000000u | (cb << 16) | (cg << 8) | cr;
+    }
     uint32_t *px = win->buf.bits;
     for (int y = r.top; y < r.bottom; y++) {
         uint32_t *row = px + (size_t) y * win->buf.stride;
@@ -342,7 +356,14 @@ JNIEXPORT void JNICALL FN(windowBlit)(JNIEnv *env, jclass cls, jlong ptr, jlong 
                 uint32_t d = dst[x], k = 255 - a;
                 uint32_t rb = ((d & 0x00ff00ffu) * k + 0x00800080u) >> 8 & 0x00ff00ffu;
                 uint32_t g = ((d & 0x0000ff00u) * k + 0x00008000u) >> 8 & 0x0000ff00u;
-                dst[x] = 0xff000000u | ((s & 0x00ffffffu) + rb + g);
+                uint32_t out = ((s & 0x00ffffffu) + rb + g) & 0x00ffffffu;
+                if (win->translucent) {
+                    // Alpha too: what stays translucent here is what Android then blends with the
+                    // wallpaper, which is the whole point of a translucent window.
+                    dst[x] = ((a + ((d >> 24) * k + 127u) / 255u) << 24) | out;
+                } else {
+                    dst[x] = 0xff000000u | out;
+                }
             }
             x++;
         }

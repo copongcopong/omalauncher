@@ -231,16 +231,19 @@ fun TerminalView(
     val window = term.window
     val active = tiles.active === term
     LaunchedEffect(term) { term.start() }
-    val background = Palette.background.toArgb()
-    // A terminal over the wallpaper: the tile's whole view fades, foot's text with it. Lower it
-    // from style.toml (terminal.opacity) or the Style menu; 1 is opaque, as it always was.
+    // A terminal over the wallpaper: below 1, foot draws its own background at that alpha
+    // (TerminalFont writes it into the guest's foot.ini) and the window carries it to Android, so
+    // the text stays solid. The window is then cleared to nothing, since foot's pixels are the
+    // ones that should show through.
     val opacity = LauncherStyle.style[Style.TERMINAL_OPACITY].toFloat()
+    val translucent = opacity < 1f
+    val background = if (translucent) 0 else Palette.background.toArgb()
     Box(modifier.onGloballyPositioned { term.bounds = it.boundsInWindow().translate(0f, tiles.lift) }) {
         AndroidView(
             factory = { EmbeddedWindowView(it, tiles) },
             update = {
                 it.background = background
-                it.alpha = opacity
+                it.translucent = translucent
                 it.window = window
             },
             onRelease = { it.window = null },
@@ -297,6 +300,13 @@ private class EmbeddedWindowView(
             renderer?.background = value
         }
 
+    /** Whether the terminal's own translucent background is what shows through; see [WindowRenderer.translucent]. */
+    var translucent = false
+        set(value) {
+            field = value
+            renderer?.translucent = value
+        }
+
     var window: XdgToplevel? = null
         set(value) {
             if (value === field) return
@@ -307,13 +317,15 @@ private class EmbeddedWindowView(
 
     init {
         surfaceTextureListener = this
-        isOpaque = true
+        // Not opaque: a terminal with a translucent background has to blend with the wallpaper
+        // behind the tile.
+        isOpaque = false
     }
 
     private fun bind() {
         val w = window ?: return
         if (renderer != null || !isAttachedToWindow) return
-        val r = WindowRenderer(tiles.server, w).also { it.background = background }
+        val r = WindowRenderer(tiles.server, w).also { it.background = background; it.translucent = translucent }
         renderer = r
         showing.getOrPut(w) { ArrayList() } += r
         w.renderer = r

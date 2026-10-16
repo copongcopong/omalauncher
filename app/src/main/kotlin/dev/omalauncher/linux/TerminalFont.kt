@@ -35,6 +35,12 @@ class TerminalFont(
     /** The text size: an em in dp, before Android's font size; [TerminalText] has the Style menu's. */
     val em get() = style.style[Style.TERMINAL_TEXT].toFloat()
 
+    /**
+     * How solid a terminal's background is over the wallpaper, 1 for opaque: foot draws the
+     * background at this alpha itself, so the text stays solid. See [Style.TERMINAL_OPACITY].
+     */
+    val opacity get() = style.style[Style.TERMINAL_OPACITY].toFloat()
+
     /** The guest's monospace families, [family] among them; just it until [refreshFamilies]. */
     var families by mutableStateOf(listOf(family))
         private set
@@ -132,13 +138,17 @@ class TerminalFont(
     fun columns(widthPx: Int) = columns(widthPx, scale, size)
 
     /**
-     * Writes foot-font.ini if it changed or is gone: Linux removed and
-     * installed again in the same process starts without it.
+     * Writes foot-font.ini if it changed or is gone: Linux removed and installed
+     * again in the same process starts without it. A background below opaque also
+     * carries foot's `alpha`, which lives in the `[colors]` section (documented
+     * there since foot 1.10, so every version Arch ships), and applies to
+     * terminals started after the change: foot reads its configuration at startup
+     * and has no reload.
      */
     fun write() {
         if (density == 0f) return
         size = pointSize(density, fontScale, scale, em)
-        val content = "[main]\nfont=$family:size=${format(size)}\n"
+        val content = includeText(family, size, opacity)
         val file = File(proot.home, PATH.removePrefix("~/"))
         if (content == written && file.isFile) return
         written = content
@@ -154,6 +164,27 @@ class TerminalFont(
     companion object {
         /** foot.ini's include; the launcher owns this file and rewrites it. */
         const val PATH = "~/.local/state/omalauncher/foot-font.ini"
+
+        /**
+         * What [write] puts in that file: the font, and foot's background alpha only when the
+         * background is meant to be see-through. An opaque terminal writes no `[colors]` section
+         * at all, so the default configuration is exactly what it was before the setting existed.
+         */
+        fun includeText(
+            family: String,
+            size: Double,
+            opacity: Float,
+        ): String =
+            buildString {
+                append("[main]\nfont=").append(family).append(":size=").append(format(size)).append('\n')
+                if (opacity < 1f) append("\n[colors]\nalpha=").append(formatAlpha(opacity)).append('\n')
+            }
+
+        /**
+         * An alpha as foot takes it: two decimals, since [format] rounds to one for font sizes
+         * and 0.85 would become 0.9, which is not the value anyone set.
+         */
+        fun formatAlpha(opacity: Float): String = String.format(Locale.ROOT, "%.2f", opacity)
 
         /** omarchy-font-list's: one family per monospace font file. */
         private const val LIST_FAMILIES = "fc-list :spacing=100 -f '%{family[0]}\\n'"

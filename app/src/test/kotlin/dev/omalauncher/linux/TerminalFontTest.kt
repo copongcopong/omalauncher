@@ -49,4 +49,16 @@ class TerminalFontTest {
         val found = listOf("DejaVu Sans Mono", "JetBrains Mono", "JetBrains Mono NL", "Symbols Nerd Font Mono", "Noto Color Emoji", "")
         assertEquals(listOf("DejaVu Sans Mono", "JetBrains Mono", "JetBrains Mono NL"), found.filter(TerminalFont::isTextFont))
     }
+
+    /** foot's background alpha is what makes a terminal see-through without fading its text. */
+    @Test fun theIncludeCarriesFootAlphaOnlyWhenTheBackgroundIsTranslucent() {
+        assertEquals("[main]\nfont=JetBrains Mono:size=12.0\n", TerminalFont.includeText("JetBrains Mono", 12.0, 1f))
+        assertEquals(
+            "[main]\nfont=JetBrains Mono:size=12.0\n\n[colors]\nalpha=0.85\n",
+            TerminalFont.includeText("JetBrains Mono", 12.0, 0.85f),
+        )
+        // Two decimals, not the font's one: 0.75 as 0.8 would be a different value.
+        assertEquals("0.75", TerminalFont.formatAlpha(0.75f))
+        assertEquals("0.30", TerminalFont.formatAlpha(0.3f))
+    }
 }

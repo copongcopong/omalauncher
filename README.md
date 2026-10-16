@@ -8,9 +8,10 @@
 >   side, so a widget tile can be full width.
 > - The terminal's ⌨ button sits at the bottom left rather than the bottom right, in both the
 >   home screen's terminal tiles and a Linux window's own activity.
-> - A terminal's tile can be see-through: `terminal.opacity` in
->   `~/.config/omalauncher/style/style.toml` (0.3 to 1, or Style › terminal › opacity) fades it
->   over the wallpaper, the text with it. A standalone Linux window keeps its background.
+> - A terminal's background can be see-through: `terminal.opacity` in
+>   `~/.config/omalauncher/style/style.toml` (0.3 to 1, or Style › terminal › opacity) is foot's
+>   own background alpha, so the text stays solid over the wallpaper. Terminals started after the
+>   change; a standalone Linux window keeps its background.
 > - The extra-keys bar is a config file, `keys.toml`: its rows and keys are edited in the
 >   terminal (`~/.config/omalauncher/keys/keys.toml`) and redraw on save, no rebuild. The
 >   preset is the fork's own keys — `^b`, `^a` and `^p` on the second row — at

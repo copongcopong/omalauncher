@@ -297,7 +297,7 @@ private fun TerminalSection(
         Style.TERMINAL_OPACITY,
         style,
     )
-    OptionHint("how solid a terminal is over the wallpaper, text included", Modifier.padding(bottom = 4.dp))
+    OptionHint("how solid a terminal's background is over the wallpaper; the text stays solid", Modifier.padding(bottom = 4.dp))
     // In portrait, where columns run short; landscape has plenty.
     val metrics = LocalContext.current.resources.displayMetrics
     val columns = font.columns(minOf(metrics.widthPixels, metrics.heightPixels))
