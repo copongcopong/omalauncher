@@ -41,6 +41,9 @@ class TerminalFont(
      */
     val opacity get() = style.style[Style.TERMINAL_OPACITY].toFloat()
 
+    /** The colours section the guest's foot accepts, asked once: it can name a different one than a guess would. */
+    private val colors by lazy { TerminalColors.section(proot.rootfs) }
+
     /** The guest's monospace families, [family] among them; just it until [refreshFamilies]. */
     var families by mutableStateOf(listOf(family))
         private set
@@ -148,7 +151,7 @@ class TerminalFont(
     fun write() {
         if (density == 0f) return
         size = pointSize(density, fontScale, scale, em)
-        val content = includeText(family, size, opacity)
+        val content = includeText(family, size, opacity, colors)
         val file = File(proot.home, PATH.removePrefix("~/"))
         if (content == written && file.isFile) return
         written = content
@@ -167,17 +170,21 @@ class TerminalFont(
 
         /**
          * What [write] puts in that file: the font, and foot's background alpha only when the
-         * background is meant to be see-through. An opaque terminal writes no `[colors]` section
-         * at all, so the default configuration is exactly what it was before the setting existed.
+         * background is meant to be see-through. An opaque terminal writes no colours section at
+         * all, so the default configuration is exactly what it was before the setting existed.
+         * [colors] is the section the guest's foot takes that alpha in; null leaves it out.
          */
         fun includeText(
             family: String,
             size: Double,
             opacity: Float,
+            colors: String?,
         ): String =
             buildString {
                 append("[main]\nfont=").append(family).append(":size=").append(format(size)).append('\n')
-                if (opacity < 1f) append("\n[colors]\nalpha=").append(formatAlpha(opacity)).append('\n')
+                if (opacity < 1f && colors != null) {
+                    append("\n[").append(colors).append("]\nalpha=").append(formatAlpha(opacity)).append('\n')
+                }
             }
 
         /**
