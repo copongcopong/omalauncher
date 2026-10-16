@@ -10,6 +10,8 @@ Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalaun
 
 - The terminal's ⌨ button moved from the bottom right to the bottom left, in the home
   screen's terminal tiles and in a Linux window.
+- A terminal tile can be made see-through: `terminal.opacity` in `style.toml`, or Style ›
+  terminal › opacity, fades the tile over the wallpaper (the text with it). 1 is opaque.
 - The extra-keys bar is configurable. `~/.config/omalauncher/keys/keys.toml` holds its rows
   and keys — a key by name or evdev code, `*` to repeat while held, `ctrl`/`alt`/`shift`
   alone to latch a modifier, `label=ctrl+x` to hold one around a key — and the bar follows

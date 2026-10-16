@@ -35,6 +35,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.TerminalFont
 import dev.omalauncher.linux.shellQuote
+import dev.omalauncher.theme.Style
 import dev.omalauncher.wayland.WindowRenderer
 import dev.omalauncher.wayland.XdgToplevel
 
@@ -231,11 +232,15 @@ fun TerminalView(
     val active = tiles.active === term
     LaunchedEffect(term) { term.start() }
     val background = Palette.background.toArgb()
+    // A terminal over the wallpaper: the tile's whole view fades, foot's text with it. Lower it
+    // from style.toml (terminal.opacity) or the Style menu; 1 is opaque, as it always was.
+    val opacity = LauncherStyle.style[Style.TERMINAL_OPACITY].toFloat()
     Box(modifier.onGloballyPositioned { term.bounds = it.boundsInWindow().translate(0f, tiles.lift) }) {
         AndroidView(
             factory = { EmbeddedWindowView(it, tiles) },
             update = {
                 it.background = background
+                it.alpha = opacity
                 it.window = window
             },
             onRelease = { it.window = null },
