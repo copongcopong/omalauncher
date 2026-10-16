@@ -2,14 +2,12 @@
 
 > **Omalauncher Z.** [copongcopong/omalauncher](https://github.com/copongcopong/omalauncher) is a fork of
 > [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher) developed on `main`.
-> Four changes so far, aimed at a foldable's inner screen and a terminal over its wallpaper:
+> Three changes so far, all aimed at a foldable's inner screen:
 >
 > - The home grid is 12 columns spanning the whole screen instead of two 6-column pages side by
 >   side, so a widget tile can be full width.
 > - The terminal's ⌨ button sits at the bottom left rather than the bottom right, in both the
 >   home screen's terminal tiles and a Linux window's own activity.
-> - A terminal's tile can be see-through: `terminal.opacity` in `style.toml` (or Style ›
->   terminal › opacity) fades it over the wallpaper, the text with it.
 > - The extra-keys bar is a config file, `keys.toml`: its rows and keys are edited in the
 >   terminal (`~/.config/omalauncher/keys/keys.toml`) and redraw on save, no rebuild. The
 >   preset is the fork's own keys — `^b`, `^a` and `^p` on the second row — at
