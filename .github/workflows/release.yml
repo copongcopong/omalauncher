@@ -13,6 +13,9 @@ permissions:
 
 jobs:
   apk:
+    # Upstream's own release, with the Play upload key: this fork's tags are v<version>-z and
+    # have no KEYSTORE_* secrets, so without the guard every fork tag fails here.
+    if: github.repository_owner == 'SimonSchubert'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

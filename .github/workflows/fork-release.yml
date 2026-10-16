@@ -1,0 +1,136 @@
+name: fork release
+
+# The fork's own release APKs, tagged v<versionName> like upstream's (v0.7.2-z).
+#
+# Signed with the debug keystore, deliberately: it is the key every build on this phone
+# has used, so a release installs as an update over an earlier one and the app's data,
+# its keys.toml and its Arch install stay put. A new upload key would mean uninstalling
+# first. The keystore lives in repo secrets (KEYSTORE_*), not in this repo.
+#
+# Upstream's release.yml keeps the Play upload key and stays upstream-only: a v*-z tag
+# here would otherwise start it and stop at its "no KEYSTORE_* secrets" guard.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release, e.g. v0.7.2-z'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  apk:
+    if: github.repository_owner == 'copongcopong'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Check the tag matches the app version
+        id: version
+        run: |
+          name=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          code=$(sed -n 's/^ *versionCode = \([0-9]*\)/\1/p' app/build.gradle.kts)
+          if [ "$TAG" != "v$name" ]; then
+            echo "Tag $TAG doesn't match versionName $name" >&2
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
+      # The proot binaries aren't in git; the release build needs them in jniLibs.
+      - name: Fetch proot
+        run: |
+          sudo apt-get update -q && sudo apt-get install -yq libarchive-tools
+          ndk=$(sed -n 's/^NDK_VERSION=//p' scripts/fetch-proot.sh)
+          [ -d "$ANDROID_HOME/ndk/$ndk" ] || yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ndk" >/dev/null
+          scripts/fetch-proot.sh
+
+      # Without this the release build type falls back to the runner's own debug keystore,
+      # which is freshly generated per job: same signing config, different key every time,
+      # so no release could install over the last one.
+      - name: Write the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "No KEYSTORE_BASE64 secret: the APK would be signed with a key the phone's install doesn't have." >&2
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/fork.jks"
+          cat > keystore.properties <<EOF
+          storeFile=$RUNNER_TEMP/fork.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Build
+        run: ./gradlew :app:assembleRelease
+
+      - name: Check the APK
+        id: apk
+        run: |
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | tail -1)
+          apk="OmalauncherZ-${{ steps.version.outputs.name }}-arm64.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          sha256sum "$apk" > SHA256SUMS
+          badging=$("$bt/aapt2" dump badging "$apk")
+          echo "$badging" | head -1
+          echo "$badging" | grep -q "versionName='${{ steps.version.outputs.name }}'" || { echo "versionName isn't ${{ steps.version.outputs.name }}" >&2; exit 1; }
+          "$bt/apksigner" verify --print-certs "$apk" | grep "certificate SHA-256"
+          echo "file=$apk" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ steps.apk.outputs.file }}
+
+      # Sideloaded build, so the notes are about installing it rather than about Play.
+      - name: Notes
+        run: |
+          cat > "$RUNNER_TEMP/notes.md" <<'EOF'
+          Omalauncher Z, built from upstream 0.7.2 with this fork's changes: a 12-column home
+          grid across a foldable's inner screen, the keyboard button at a window's bottom left,
+          and the terminal's extra keys in `keys.toml`, editable in the guest and redrawn on save.
+
+          arm64 only, Android 10 or newer. It builds as `dev.omalauncher.fold`, so it installs
+          beside the Play release; install with `adb install -r OmalauncherZ-*-arm64.apk`, or by
+          tapping the file.
+
+          Signed with the debug keystore on purpose, so it updates over an earlier fork build
+          instead of asking for an uninstall. That also means it can't go on Play.
+
+          The rails, panels and pointer in the demo below belong to So7o Z Trackpad, a separate
+          app: https://youtube.com/shorts/D3fvVJxXpGE
+
+          Docs: https://github.com/copongcopong/omalauncher/blob/main/docs/EXTRA-KEYS.md
+          EOF
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" "${{ steps.apk.outputs.file }}" SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Omalauncher Z ${{ steps.version.outputs.name }}" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --verify-tag

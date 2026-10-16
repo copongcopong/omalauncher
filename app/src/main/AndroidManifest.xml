@@ -30,7 +30,7 @@
         android:name=".App"
         android:extractNativeLibs="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="Omalauncher fold"
+        android:label="Omalauncher Z"
         android:theme="@style/Theme.Omalauncher"
         android:usesCleartextTraffic="true">
 
