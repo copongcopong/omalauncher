@@ -2,9 +2,14 @@ package dev.omalauncher.linux
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.File
 
 class TerminalFontTest {
+    @get:Rule val tmp = TemporaryFolder()
+
     /** A typical phone: density 2.625, so foot's scale is 2. */
     @Test fun phoneTextIsBiggerThanTheOldFixedSize() {
         val size = TerminalFont.pointSize(2.625f, 1f, 2)
@@ -48,5 +53,46 @@ class TerminalFontTest {
     @Test fun listsTextFontsOnly() {
         val found = listOf("DejaVu Sans Mono", "JetBrains Mono", "JetBrains Mono NL", "Symbols Nerd Font Mono", "Noto Color Emoji", "")
         assertEquals(listOf("DejaVu Sans Mono", "JetBrains Mono", "JetBrains Mono NL"), found.filter(TerminalFont::isTextFont))
+    }
+
+    /** foot's background alpha is what makes a terminal see-through without fading its text. */
+    @Test fun theIncludeCarriesFootAlphaOnlyWhenTheBackgroundIsTranslucent() {
+        assertEquals("[main]\nfont=JetBrains Mono:size=12.0\n", TerminalFont.includeText("JetBrains Mono", 12.0, 1f, "colors-dark"))
+        assertEquals(
+            "[main]\nfont=JetBrains Mono:size=12.0\n\n[colors-dark]\nalpha=0.85\n",
+            TerminalFont.includeText("JetBrains Mono", 12.0, 0.85f, "colors-dark"),
+        )
+        // Up to foot 1.24, and anything that says so, keeps the plain section.
+        assertEquals(
+            "[main]\nfont=JetBrains Mono:size=12.0\n\n[colors]\nalpha=0.50\n",
+            TerminalFont.includeText("JetBrains Mono", 12.0, 0.5f, "colors"),
+        )
+        // Nothing to write it into: better opaque than a section foot would refuse.
+        assertEquals("[main]\nfont=JetBrains Mono:size=12.0\n", TerminalFont.includeText("JetBrains Mono", 12.0, 0.5f, null))
+        // Two decimals, not the font's one: 0.75 as 0.8 would be a different value.
+        assertEquals("0.75", TerminalFont.formatAlpha(0.75f))
+        assertEquals("0.30", TerminalFont.formatAlpha(0.3f))
+    }
+
+    /**
+     * foot rejects a section it doesn't know ("invalid section name: colors"), so the section comes
+     * from the guest: its theme's own foot.ini, and pacman's version when that file isn't there.
+     */
+    @Test fun theColorsSectionComesFromTheGuest() {
+        val rootfs = File(tmp.root, "arch")
+        // foot 1.28's omarchy theme, as a Fold has it: the section is colors-dark, not colors.
+        File(rootfs, "root/.local/state/omarchy/current/theme").mkdirs()
+        File(rootfs, "root/.local/state/omarchy/current/theme/foot.ini").writeText("[colors-dark]\nbackground=2c2525\n")
+        assertEquals("colors-dark", TerminalColors.section(rootfs))
+        // Nothing to read: pacman's database, where 1.28 split the colours and 1.24 had not.
+        File(rootfs, "root/.local/state/omarchy/current/theme/foot.ini").delete()
+        assertEquals(null, TerminalColors.section(rootfs))
+        val db = File(rootfs, "var/lib/pacman/local/foot-1.28.0-2")
+        db.mkdirs()
+        File(db, "desc").writeText("%NAME%\nfoot\n\n%VERSION%\n1.28.0-2\n")
+        assertEquals("colors-dark", TerminalColors.section(rootfs))
+        File(rootfs, "var/lib/pacman/local/foot-1.28.0-2").renameTo(File(rootfs, "var/lib/pacman/local/foot-1.24.0-1"))
+        File(rootfs, "var/lib/pacman/local/foot-1.24.0-1/desc").writeText("%NAME%\nfoot\n\n%VERSION%\n1.24.0-1\n")
+        assertEquals("colors", TerminalColors.section(rootfs))
     }
 }

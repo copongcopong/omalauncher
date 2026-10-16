@@ -291,6 +291,13 @@ private fun TerminalSection(
     FontOption(font.families, font.family) { family -> style.update { it.with(Style.TERMINAL_FONT, family) } }
     OptionHint("terminals opened from now on · more with pacman, like ttf-cascadia-code", Modifier.padding(bottom = 4.dp))
     NumberOption("text", TerminalText.entries.map { it.label to it.em.toDouble() }, Style.TERMINAL_TEXT, style, unit = " dp")
+    NumberOption(
+        "opacity",
+        listOf("100%" to 1.0, "88%" to 0.88, "75%" to 0.75, "60%" to 0.6),
+        Style.TERMINAL_OPACITY,
+        style,
+    )
+    OptionHint("how solid a terminal's background is over the wallpaper; the text stays solid", Modifier.padding(bottom = 4.dp))
     // In portrait, where columns run short; landscape has plenty.
     val metrics = LocalContext.current.resources.displayMetrics
     val columns = font.columns(minOf(metrics.widthPixels, metrics.heightPixels))
