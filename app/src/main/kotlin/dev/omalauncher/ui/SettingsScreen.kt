@@ -33,7 +33,6 @@ fun SettingsScreen(
     onStyle: () -> Unit,
     onAgents: () -> Unit,
     onPackages: () -> Unit,
-    onStore: () -> Unit,
     onLinux: () -> Unit,
     onLicenses: () -> Unit,
     onGestures: () -> Unit,
@@ -61,7 +60,6 @@ fun SettingsScreen(
                     Triple("coding agents", "needs linux", onLinux)
                 },
                 Triple("packages", if (installed) "install Linux apps and tools with pacman and the AUR" else "needs linux", if (installed) onPackages else onLinux),
-                Triple("widget store", "add widgets to the home screen", onStore),
                 Triple("android settings", "the phone's system settings") {
                     context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 },
