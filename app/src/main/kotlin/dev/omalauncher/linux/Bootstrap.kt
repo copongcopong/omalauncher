@@ -3,7 +3,11 @@ package dev.omalauncher.linux
 import android.content.Context
 import android.system.Os
 import android.util.Log
+import dev.omalauncher.CountingInputStream
 import dev.omalauncher.LauncherData
+import dev.omalauncher.httpGet
+import dev.omalauncher.openHttp
+import dev.omalauncher.sha256Hex
 import dev.omalauncher.upgrade.Provisioner
 import dev.omalauncher.upgrade.StepJournal
 import dev.omalauncher.upgrade.writeAtomically
@@ -15,10 +19,7 @@ import kotlinx.coroutines.withContext
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import java.io.BufferedInputStream
 import java.io.File
-import java.io.FilterInputStream
-import java.io.InputStream
 import java.net.HttpURLConnection
-import java.net.URL
 import java.util.zip.GZIPInputStream
 
 private const val TAG = "bootstrap"
@@ -43,6 +44,7 @@ private val PACKAGES =
 /** Omarchy's Winamp-style player; not in Arch's ARM repos, but upstream ships an arm64 build. */
 private const val CLIAMP_VERSION = "v2.3.0"
 private const val CLIAMP_URL = "https://github.com/bjarneo/cliamp/releases/download/$CLIAMP_VERSION/cliamp-linux-arm64"
+private const val CLIAMP_SHA256 = "827b4aa879feecab33ea621dc1460c60ffa765c210b5046d679ce5a4073d2b32"
 
 private val MIRRORS =
     listOf(
@@ -133,7 +135,7 @@ class Bootstrap(
     val isInstalled get() = _state.value == LinuxState.Installed
 
     /** An install was started (and may still need to finish), or one finished. */
-    val wanted get() = journal.setupComplete || choiceFile.exists() || File(proot.filesDir, "rootfs-ready").exists()
+    val wanted get() = journal.setupComplete || choiceFile.exists()
 
     /** Update steps running after the home screen is up; Idle when there are none. */
     private val _updates = MutableStateFlow<JobState>(JobState.Idle)
@@ -193,20 +195,6 @@ class Bootstrap(
     }
 
     /**
-     * Launchers before the step journal marked a finished setup with files/rootfs-ready
-     * (and the app packages with apps-vN). Such a system is set up: record what those
-     * builds did, so only newer steps run. Never let it look like a fresh install.
-     */
-    private fun adoptLegacySetup() {
-        val ready = File(proot.filesDir, "rootfs-ready")
-        if (journal.setupComplete || !ready.exists()) return
-        for (id in listOf("rootfs", "etc-1", "keyring-1", "no-kernel-1", "packages-1")) journal.mark(id)
-        if (File(proot.rootfs, "usr/local/bin/cliamp").exists()) journal.mark("cliamp-$CLIAMP_VERSION")
-        journal.completeSetup()
-        proot.filesDir.listFiles { f -> f.name == "rootfs-ready" || f.name.startsWith("apps-v") }?.forEach { it.delete() }
-    }
-
-    /**
      * Brings Linux to [LinuxState.Installed] if it's wanted: updates an
      * installed system, or continues an install that was started (also
      * after the app was killed during it). Otherwise reports NotInstalled.
@@ -214,7 +202,6 @@ class Bootstrap(
     suspend fun run() =
         withContext(Dispatchers.IO) {
             try {
-                adoptLegacySetup()
                 when {
                     journal.setupComplete -> update()
                     !choiceFile.exists() -> {
@@ -366,7 +353,7 @@ class Bootstrap(
     /** Always a fresh unpack: this step only runs until one completed, so a rootfs here is a half-unpacked one. */
     private fun installRootfs() {
         // Unpacking replaces the rootfs: the user's home, packages and agents. Only ever before a setup finished.
-        check(!journal.setupComplete && !File(proot.filesDir, "rootfs-ready").exists()) { "refusing to replace a set-up system" }
+        check(!journal.setupComplete) { "refusing to replace a set-up system" }
         val tarball = obtainTarball()
         try {
             extract(tarball)
@@ -391,9 +378,24 @@ class Bootstrap(
         val partial = File(context.cacheDir, "$TARBALL.part")
         val validator = File(context.cacheDir, "$TARBALL.version")
         report(Stage.Download, "Downloading Arch Linux ARM", 0f)
-        val conn = URL(ROOTFS_URL).openConnection() as HttpURLConnection
-        conn.connectTimeout = 15_000
-        conn.readTimeout = 30_000
+        val conn = openHttp(ROOTFS_URL)
+        try {
+            download(conn, partial, validator)
+        } finally {
+            conn.disconnect()
+        }
+        // Only a complete download is kept for a retry.
+        check(partial.renameTo(target)) { "can't move the download into place" }
+        validator.delete()
+        return target
+    }
+
+    /** Into [partial], continuing it if the server still has the version [validator] names. Throws if it ends short. */
+    private fun download(
+        conn: HttpURLConnection,
+        partial: File,
+        validator: File,
+    ) {
         val have = if (partial.exists() && validator.exists()) partial.length() else 0L
         if (have > 0) {
             conn.setRequestProperty("Range", "bytes=$have-")
@@ -425,11 +427,7 @@ class Bootstrap(
                 }
             }
         }
-        // Only a complete download is kept for a retry.
         check(total <= 0 || partial.length() == total) { "the download was cut short; retry to continue it" }
-        partial.renameTo(target)
-        validator.delete()
-        return target
     }
 
     private fun extract(tarball: File) {
@@ -510,7 +508,9 @@ class Bootstrap(
     }
 
     private fun installCliamp() {
-        val bytes = URL(CLIAMP_URL).openStream().use { it.readBytes() }
+        // Runs under pacman's lock, so a stalled download must time out rather than hold it.
+        val bytes = httpGet(CLIAMP_URL)
+        check(sha256Hex(bytes) == CLIAMP_SHA256) { "cliamp download doesn't match $CLIAMP_VERSION" }
         writeAtomically(File(proot.rootfs, "usr/local/bin/cliamp"), bytes, executable = true)
     }
 
@@ -519,19 +519,4 @@ class Bootstrap(
         val code = proot.run(script) { line -> if (log.add(line)) report(stage, step) }
         check(code == 0) { "`${script.take(60)}` failed (exit $code)" }
     }
-}
-
-private class CountingInputStream(
-    input: InputStream,
-) : FilterInputStream(input) {
-    var count = 0L
-        private set
-
-    override fun read(): Int = super.read().also { if (it >= 0) count++ }
-
-    override fun read(
-        b: ByteArray,
-        off: Int,
-        len: Int,
-    ): Int = super.read(b, off, len).also { if (it > 0) count += it }
 }

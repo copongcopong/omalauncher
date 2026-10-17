@@ -149,8 +149,7 @@ fun HomeScreen(
     /** Opens the default agent on the widget's file; with no agent installed, the agents screen instead. */
     fun edit(item: WidgetItem) {
         state.editing = null
-        val agent = runtime.agents.default
-        if (agent == null) state.show(SettingsPage.Agents) else runtime.terminal(editWidgetCommand(agent.bin, item.spec), "Edit ${item.spec.name}", agent)
+        state.withAgent(runtime, "Edit ${item.spec.name}") { editWidgetCommand(it, item.spec) }
     }
 
     // Overlays below are siblings of the pager inside this Box, so they never change the page's size.
@@ -265,7 +264,7 @@ fun HomeScreen(
                     EditBar {
                         if (item is WidgetItem) EditAction("edit") { edit(item) }
                         // As a QR code or link, or (your own) to the store. An agent's tile is a terminal, not a widget to pass on.
-                        if (item is WidgetItem && !item.spec.file.name.startsWith("agent-")) {
+                        if (item is WidgetItem && !engine.isAgentWidget(item.spec)) {
                             EditAction("share") {
                                 state.editing = null
                                 state.sharing = item.spec
@@ -301,14 +300,7 @@ fun HomeScreen(
                             onInstall = { engine.installDependencies(item.spec) },
                             waitsForLinux = if (engine.waitsForLinux(item.spec)) linuxState else null,
                             onInstallLinux = { state.show(SettingsPage.Linux) },
-                            onFix = { log ->
-                                val agent = runtime.agents.default
-                                if (agent == null) {
-                                    state.show(SettingsPage.Agents)
-                                } else {
-                                    runtime.terminal(fixDependenciesCommand(agent.bin, item.spec, log), "Fix ${item.spec.name}", agent)
-                                }
-                            },
+                            onFix = { log -> state.withAgent(runtime, "Fix ${item.spec.name}") { fixDependenciesCommand(it, item.spec, log) } },
                         )
                     }
                     is Shortcut ->
