@@ -1,6 +1,8 @@
 name: fork release
 
 # The fork's own release APKs, tagged v<versionName> like upstream's (v0.7.2-z).
+# Run manually with no tag (Actions → fork release → Run workflow) and it just builds the APK
+# and uploads it as an artifact, so a build can be tried before it is tagged.
 #
 # Signed with the debug keystore, deliberately: it is the key every build on this phone
 # has used, so a release installs as an update over an earlier one and the app's data,
@@ -15,8 +17,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release, e.g. v0.7.2-z'
-        required: true
+        description: 'Tag to release, e.g. v0.7.2-z. Leave empty to just build an APK artifact'
+        required: false
         type: string
 
 permissions:
@@ -30,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
+      RELEASE: ${{ github.ref_type == 'tag' || inputs.tag != '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,12 +45,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Check the tag matches the app version
+      - name: App version
         id: version
         run: |
           name=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
           code=$(sed -n 's/^ *versionCode = \([0-9]*\)/\1/p' app/build.gradle.kts)
-          if [ "$TAG" != "v$name" ]; then
+          # A build-only run has no tag to check; a release must be tagged with its version.
+          if [ "$RELEASE" = "true" ] && [ "$TAG" != "v$name" ]; then
             echo "Tag $TAG doesn't match versionName $name" >&2
             exit 1
           fi
@@ -104,6 +108,13 @@ jobs:
         with:
           subject-path: ${{ steps.apk.outputs.file }}
 
+      # A build-only run (no tag) hands the APK back as a workflow artifact instead.
+      - uses: actions/upload-artifact@v4
+        if: env.RELEASE != 'true'
+        with:
+          name: OmalauncherZ-${{ steps.version.outputs.name }}-arm64
+          path: ${{ steps.apk.outputs.file }}
+
       # Sideloaded build, so the notes are about installing it rather than about Play.
       - name: Notes
         run: |
@@ -133,6 +144,7 @@ jobs:
           EOF
 
       - name: Release
+        if: env.RELEASE == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
