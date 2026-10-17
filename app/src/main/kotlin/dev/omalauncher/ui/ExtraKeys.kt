@@ -23,6 +23,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,12 +31,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CoroutineScope
@@ -122,38 +125,68 @@ private fun PlainKey(
     bridge: KeyboardBridge,
     sizes: ExtraKeysSpec.Sizes,
     modifier: Modifier,
+) = RepeatingKeyCap(
+    key.label,
+    key.arrow?.let { Icons.Chevron },
+    key.arrow ?: 0f,
+    key.repeats,
+    modifier,
+    { bridge.tap(key.code, key.held) },
+    // Half the row, so a shorter bar gets a smaller chevron with it.
+    iconSize = (sizes.row * 0.5f).coerceAtMost(20f).dp,
+    labelSize = sizes.text.sp,
+)
+
+/**
+ * A keycap that acts on touch down, and keeps acting while held when it [repeats]:
+ * the terminal's extra keys and the editor's. Shows [icon] turned by [rotation], else [label].
+ */
+@Composable
+internal fun RepeatingKeyCap(
+    label: String,
+    icon: ImageVector?,
+    rotation: Float,
+    repeats: Boolean,
+    modifier: Modifier,
+    onPress: () -> Unit,
+    // The terminal's bar sizes its caps from keys.toml; the editor's key row takes the defaults.
+    iconSize: Dp = 20.dp,
+    labelSize: TextUnit? = null,
 ) {
     val view = LocalView.current
+    val press by rememberUpdatedState(onPress)
     var pressed by remember { mutableStateOf(false) }
     KeyCap(
-        modifier.pointerInput(key) {
+        modifier.pointerInput(label, repeats) {
             presses { scope ->
                 pressed = true
                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                val press =
+                val job =
                     scope.launch {
-                        bridge.tap(key.code, key.held)
-                        if (!key.repeats) return@launch
+                        press()
+                        if (!repeats) return@launch
                         delay(RepeatDelay)
                         while (true) {
-                            bridge.tap(key.code, key.held)
+                            press()
                             delay(RepeatInterval)
                         }
                     }
                 waitForUpOrCancellation()
-                press.cancel()
+                job.cancel()
                 pressed = false
             }
         },
         fill = if (pressed) Palette.accent else Palette.surface,
     ) {
         val color = if (pressed) Palette.background else Palette.foreground
-        if (key.arrow != null) {
-            // Half the row, so a shorter bar gets a smaller chevron with it.
-            val chevron = (sizes.row * 0.5f).coerceAtMost(20f).dp
-            Image(Icons.Chevron, key.label, Modifier.size(chevron).rotate(key.arrow), colorFilter = ColorFilter.tint(color))
+        if (icon != null) {
+            Image(icon, label, Modifier.size(iconSize).rotate(rotation), colorFilter = ColorFilter.tint(color))
         } else {
-            BasicText(key.label, style = Mono.copy(color = color, fontSize = sizes.text.sp))
+            BasicText(
+                label,
+                style = if (labelSize != null) Mono.copy(color = color, fontSize = labelSize) else Mono.copy(color = color),
+                maxLines = 1,
+            )
         }
     }
 }
