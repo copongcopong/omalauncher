@@ -11,6 +11,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +21,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -79,41 +81,60 @@ class EmbeddedBrowser internal constructor(
     /** The view, kept while the tile is off screen; null until the tile first shows or once closed. */
     private var view: TileWebView? = null
 
+    /**
+     * The holder that has the page now, one token per holder a tile is drawn in. A holder that lets go of the page
+     * after another one has taken it leaves it where it is: taking it out of that holder would leave a page with no
+     * size in the window, which never draws again.
+     */
+    private var holder: Any? = null
+
     private var closed = false
 
     /** Where the tile is, in window pixels, as if the home screen weren't lifted. */
     internal var bounds = Rect.Zero
 
     /**
-     * The WebView this tile draws in: the one this handle already has (a tab switched back to),
-     * or a new one set up for this node.
+     * The WebView this tile draws in: the one this handle already has (a tab switched back to), or a new one set up
+     * for this node. It goes into [host], the holder's own box, so the page is the only view that moves as a tile
+     * comes and goes.
      */
-    internal fun attach(context: Context): TileWebView {
-        view?.let { kept ->
-            // The holder this tile had before still has it (the widget was rebuilt, or the tile left and came back):
-            // a view with a parent can't be handed to a new one, and the second add is what Compose throws on.
-            (kept.parent as? ViewGroup)?.removeView(kept)
+    internal fun attach(
+        host: ViewGroup,
+        holder: Any,
+    ): TileWebView {
+        val v =
+            view ?: TileWebView(host.context).also {
+                configure(it)
+                it.webViewClient = Client()
+                it.webChromeClient = Chrome()
+                view = it
+                if (!closed) load()
+            }
+        if (this.holder === holder && v.parent === host) return v
+        (v.parent as? ViewGroup)?.removeView(v)
+        this.holder = holder
+        // In once the box has been laid out: a view added while the tile is still being measured is drawn at the place
+        // and size the tile had before the row above the page was measured, and goes on drawing there.
+        host.post {
+            if (this.holder !== holder || v.parent === host) return@post
+            host.addView(v, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
             // Back on screen: a paused page's timers run again.
-            kept.onResume()
-            return kept
+            v.onResume()
         }
-        val v = TileWebView(context)
-        configure(v)
-        v.webViewClient = Client()
-        v.webChromeClient = Chrome()
-        view = v
-        if (!closed) load()
         return v
     }
 
     /**
-     * The tile has gone off screen: the view leaves its holder, so the next tile to draw it can take it.
+     * The tile has gone off screen: the page leaves its box, so the next holder to draw it can take it.
      * It isn't destroyed, though: it keeps its page, and its timers wait.
      */
-    fun detach(view: WebView) {
-        if (this.view !== view) return
-        (view.parent as? ViewGroup)?.removeView(view)
-        view.onPause()
+    fun detach(holder: Any) {
+        // A holder that let go after another one took the page leaves it running: it is on screen.
+        if (this.holder !== holder) return
+        this.holder = null
+        val v = view ?: return
+        (v.parent as? ViewGroup)?.removeView(v)
+        v.onPause()
     }
 
     /** The tile was tapped: the page gets the focus, and with it the keyboard one of its fields asks for. */
@@ -155,6 +176,7 @@ class EmbeddedBrowser internal constructor(
         closed = true
         // The tile lets go of it first: a destroyed view can't be cleared.
         tiles?.unfocused(this)
+        holder = null
         view?.let {
             // Out of its holder before it goes: destroy() on a view the window still holds is a crash of its own.
             (it.parent as? ViewGroup)?.removeView(it)
@@ -303,14 +325,19 @@ fun BrowserView(
         // Keyed on the page itself: a tile rebuilt for a new url is a holder of its own, and the same page keeps
         // the view it already has (and the scroll and history in it) instead of a holder swapping views under it.
         key(browser) {
+            // A box of this holder's own, and a token that tells it from the holder the page was in before: the page
+            // moves between boxes, and is never the view Compose adds and takes away.
+            val holder = remember { Any() }
             AndroidView(
-                factory = { browser.attach(it) },
-                update = {
-                    it.setBackgroundColor(background.toArgb())
-                    // Only a tapped page of a home tile takes touches; until then the overlay below is the tile's.
-                    it.inert = tiles != null && !active
+                factory = { FrameLayout(it) },
+                update = { host ->
+                    browser.attach(host, holder).also {
+                        it.setBackgroundColor(background.toArgb())
+                        // Only a tapped page of a home tile takes touches; until then the overlay below is the tile's.
+                        it.inert = tiles != null && !active
+                    }
                 },
-                onRelease = { browser.detach(it) },
+                onRelease = { browser.detach(holder) },
                 modifier = Modifier.fillMaxSize(),
             )
         }
