@@ -237,7 +237,7 @@ class WidgetServices(
         url: String?,
         js: Boolean,
         zoom: Double,
-    ) = EmbeddedBrowser(url, js, zoom)
+    ) = EmbeddedBrowser(runtime.terminals, url, js, zoom)
 
     override fun fileUpdates(path: String) = watchFile(guestFile(path))
 

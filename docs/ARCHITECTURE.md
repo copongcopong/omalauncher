@@ -55,9 +55,13 @@ tile the way any other view's do. What the page may reach is decided there and
 nowhere else: https only, no file or content access, script and DOM storage only
 when the node asks for `js`, and no JavaScript bridge. Every Browser in the app
 shares one WebView profile, so cookies and sign-ins are shared between tiles.
-Home's input owner, `TerminalTiles`, doesn't take a Browser tile in: a terminal
-and a tile's text fields take the keyboard and lift the home screen for it,
-while a WebView keeps an IME connection of its own and its tile stays put.
+Home's input owner, `TerminalTiles`, takes a Browser tile in as it takes a
+terminal: the page's view takes no touch until the tile is tapped
+(`TileWebView.dispatchTouchEvent` says so), so a swipe still turns the page and
+a long press still lifts the tile. The tap that gives it the tile, a tap
+outside it, a page turn and Back are the same code path a terminal's and a
+widget's text field are, and the page is what the home screen lifts above the
+keyboard. A field in the page keeps the WebView's own IME connection.
 
 ## GPU acceleration
 

@@ -2,19 +2,29 @@ package dev.omalauncher.ui
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.view.MotionEvent
+import android.view.inputmethod.InputMethodManager
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.omalauncher.BuildConfig
 import dev.omalauncher.openUrl
@@ -30,9 +40,12 @@ import kotlin.math.roundToInt
  * What a page may reach is decided here and nowhere else: script and DOM
  * storage only with `js: true`, no file or content access, no geolocation, no
  * popups, no media that plays on its own, and nothing but https in the page
- * itself. Main thread only.
+ * itself. Its tile is inert until tapped, as a terminal's is: the tap, a tap
+ * outside and Back are [TerminalTiles]'. Main thread only.
  */
 class EmbeddedBrowser internal constructor(
+    /** The home screen's input owner, which owns the tile's taps; null for a page no home tile draws, as a test's. */
+    internal val tiles: TerminalTiles?,
     /** The https URL the node asked for; a tile whose url changes gets a new handle. */
     val url: String?,
     /** Whether the page may run script; with it, DOM storage too. */
@@ -62,22 +75,25 @@ class EmbeddedBrowser internal constructor(
     var onProgress: ((Double) -> Unit)? = null
 
     /** The view, kept while the tile is off screen; null until the tile first shows or once closed. */
-    private var view: WebView? = null
+    private var view: TileWebView? = null
 
     private var closed = false
+
+    /** Where the tile is, in window pixels, as if the home screen weren't lifted. */
+    internal var bounds = Rect.Zero
 
     /**
      * The WebView this tile draws in: the one this handle already has (a tab switched back to),
      * or a new one set up for this node.
      */
-    fun attach(context: Context): WebView {
+    internal fun attach(context: Context): TileWebView {
         view?.let { kept ->
             if (kept.isAttachedToWindow) return kept
             // Back on screen: a paused page's timers run again.
             kept.onResume()
             return kept
         }
-        val v = WebView(context)
+        val v = TileWebView(context)
         configure(v)
         v.webViewClient = Client()
         v.webChromeClient = Chrome()
@@ -90,6 +106,19 @@ class EmbeddedBrowser internal constructor(
     fun detach(view: WebView) {
         if (this.view !== view) return
         view.onPause()
+    }
+
+    /** The tile was tapped: the page gets the focus, and with it the keyboard one of its fields asks for. */
+    fun focus() {
+        view?.requestFocus()
+    }
+
+    /** The page lets go (a tap outside, Back or another page): its field loses the keyboard with it. */
+    fun clearFocus() {
+        val v = view ?: return
+        v.clearFocus()
+        // A page's own field would otherwise leave the keyboard up over a tile that isn't typing any more.
+        v.context.getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(v.windowToken, 0)
     }
 
     /** Loads [link], or the node's own url with none; what [attach] does the first time. */
@@ -116,6 +145,8 @@ class EmbeddedBrowser internal constructor(
     /** Ends the page (the widget was removed, or its url changed); a tab switch doesn't. */
     fun close() {
         closed = true
+        // The tile lets go of it first: a destroyed view can't be cleared.
+        tiles?.unfocused(this)
         view?.let {
             it.stopLoading()
             it.destroy()
@@ -222,6 +253,21 @@ class EmbeddedBrowser internal constructor(
     }
 }
 
+/**
+ * A tile's page as a view: a WebView that takes no touch of its own until the tile is tapped, so the home screen's own
+ * gestures still reach it: a swipe across the page turns the page, a long press lifts the tile, a tap outside lets go.
+ * It has to be the view's own doing: an AndroidView's touches reach its view before Compose's pointer input does, and
+ * a WebView consumes every one of them.
+ */
+internal class TileWebView(
+    context: Context,
+) : WebView(context) {
+    /** Untapped: the page gets none of the touches, and [BrowserView]'s overlay takes the tap that gives it the tile. */
+    var inert = true
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean = !inert && super.dispatchTouchEvent(event)
+}
+
 /** The tile's content: the page, filling the tile. Its handlers are the node's, run as the page changes. */
 @Composable
 fun BrowserView(
@@ -237,11 +283,33 @@ fun BrowserView(
         browser.onNavigate = onNavigate
         browser.onProgress = onProgress
     }
+    val tiles = browser.tiles
+    val active = tiles != null && tiles.browser === browser
+    // The tile's tab went away (its visible turned false) or the node did: out of sight, a page with the touches mustn't
+    // keep them, or leave the home screen lifted for a tile that no longer shows.
+    DisposableEffect(tiles, browser) { onDispose { if (tiles != null && tiles.browser === browser) tiles.deactivate() } }
     val background = Palette.background
-    AndroidView(
-        factory = { browser.attach(it) },
-        update = { it.setBackgroundColor(background.toArgb()) },
-        onRelease = { browser.detach(it) },
-        modifier = modifier,
-    )
+    Box(modifier.onGloballyPositioned { browser.bounds = it.boundsInWindow().translate(0f, tiles?.lift ?: 0f) }) {
+        AndroidView(
+            factory = { browser.attach(it) },
+            update = {
+                it.setBackgroundColor(background.toArgb())
+                // Only a tapped page of a home tile takes touches; until then the overlay below is the tile's.
+                it.inert = tiles != null && !active
+            },
+            onRelease = { browser.detach(it) },
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (tiles != null && !active) {
+            // Over the WebView: the tap that gives the page its tile, as a terminal's overlay does.
+            Box(
+                Modifier.fillMaxSize().pointerInput(browser) {
+                    detectTapGestures {
+                        tiles.focused(browser)
+                        browser.focus()
+                    }
+                },
+            )
+        }
+    }
 }
