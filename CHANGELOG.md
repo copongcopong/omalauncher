@@ -4,6 +4,67 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
+## 0.9.0-z (versionCode 18) – 2026-10-19
+
+Omalauncher Z on upstream 0.9.0 (versionCode 17) and the rest of its main: 51 commits since
+0.8.0 — faces, owl 9 through 11, the store's previews and faces tab, and upstream's fixes,
+among them Linux setup running out of memory at "Installing cliamp", `cmd("/")`, a damaged
+font file and `round()` of very large numbers.
+
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)):
+
+- The home grid is 12 columns across a foldable's inner screen, so a widget tile is full width,
+  and it is upstream's own setting now: `home.columns` (Style › home) at 12 with
+  `home.single-page` on, which the fork ships as its defaults and widens from upstream's 4..9 to
+  4..12. The fork's hard-coded grid is gone, so the grid is configurable at last. A layout saved
+  by an earlier fork build says 12 columns and keeps its cells where they are; an older one is
+  moved onto 12 the way upstream moves a layout onto any change.
+- The terminal's ⌨ button at a window's bottom left, `terminal.opacity` and the `keys.toml`
+  extra-keys bar come through the sync unchanged.
+
+## 0.9.0 (versionCode 17) – 2026-10-18
+
+- Faces: an owl file can be a whole home screen (`face "name" { }`, owl 10), left of
+  page 1 like a stock launcher's feed, as many as you like, with an empty one
+  inviting the next. The store has a faces tab (minimal, pixel, terminal); settings ›
+  pages lists faces and tile pages to drag into order, edit or remove. A face can
+  hide the status bar, runs under the navigation bar with `screenInset`, and takes
+  both halves of an unfolded foldable.
+- Owl 10: text `spans`, `fontWeight`, `letterSpacing`, linear and radial gradient
+  backgrounds, `frost` (frosted glass over the wallpaper), fonts of a widget's own
+  (asset, URL or Linux file), styled Canvas text, `Popup`, Input `underline: false`,
+  `onLongPress`, `android.agents`, `android.recent`, `open(key)`, `ask(text)` and
+  Image `icon:<key>`. A Text in a Row or Flow is as wide as its text. `android.apps`
+  updates as apps change instead of being polled.
+- Example widgets: the start page is redesigned; the ai bar rebuilds the prompt bar
+  and recent strip in owl.
+- Fixes: sharing a face or an app to the store; dragging pages in settings; a NaN
+  font size, a damaged font file or `cmd("/")` no longer crash the launcher;
+  `round()` of very large numbers.
+
+## 0.8.1 (versionCode 16) – 2026-10-17
+
+- Home's grid has 4 to 9 columns (6 by default); changing it moves every tile onto
+  the new grid. A pages row keeps one page where a foldable would show two (#141).
+- Style settings preview home and widgets as they change, and the terminal preview
+  is drawn in place instead of starting a foot. The terminal font is a dropdown.
+- A font for the launcher's text and widgets: Android's monospace, or one of Linux's
+  monospace fonts.
+- Local network: on Android 17+ a settings row asks for ACCESS_LOCAL_NETWORK, so
+  widgets and Linux can reach devices like a printer or Home Assistant.
+- Store updates for widgets and apps show in settings' system updates box, with
+  pending packages and agents listed one per line.
+- The home menu has the settings gear at its top right, like the drawer.
+- Owl 9: `parseTime`, `fmtAgo`, `fmtNum`, `fmtTime` with a time zone and language,
+  `random`, `shuffle` and `hash`; `set`, `remove`, `merge`, `reduce`, `scan`,
+  `groupBy`, `toJson`, `capitalize`, `asin`, `acos`, `flatten` to a depth and
+  `on x first`; handlers have `if`/`else` and `let`. Numbers print as JavaScript
+  writes them (1792231445.5, not 1.7922314455E9).
+- Fixes: a widget's text field lifts its tile above the keyboard like a terminal;
+  home no longer stays sideways in portrait after a landscape app (before Android 14);
+  a widget filling its page shows its edit bar inside it; Linux setup no longer
+  hangs at "Installing cliamp" on phones with a small app heap.
+
 ## 0.8.0 (versionCode 15) – 2026-10-17
 
 - Apps: an owl file can be a full-screen app (`app "name" { }`, owl 8) that opens

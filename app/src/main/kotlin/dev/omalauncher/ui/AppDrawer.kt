@@ -207,7 +207,7 @@ internal class BarSearch(
     fun highlighted(picked: Int?) = picked?.coerceIn(-1, hits.lastIndex) ?: if (opensApp) 0 else -1
 }
 
-private fun allApps(runtime: Runtime): List<AppHit> =
+internal fun allApps(runtime: Runtime): List<AppHit> =
     runtime.widgets.apps().map { AppHit.Owl(it) } + runtime.linuxApps.apps.map { AppHit.Linux(it) } + runtime.androidApps.apps.map { AppHit.Android(it) } +
         runtime.androidApps.shortcuts.map { AppHit.Shortcut(it) }
 
@@ -266,13 +266,42 @@ private fun AppHit.actions(handlers: AppHandlers): List<Pair<String, () -> Unit>
     }
 
 /** The app's icon and its silhouette, each null until loaded or if it has none. */
-private fun AppHit.icons(runtime: Runtime): Pair<ImageBitmap?, ImageBitmap?> =
+internal fun AppHit.icons(runtime: Runtime): Pair<ImageBitmap?, ImageBitmap?> =
     when (this) {
         is AppHit.Linux -> runtime.linuxApps.icons[app.id] to runtime.linuxApps.masks[app.id]
         is AppHit.Owl -> runtime.owlIcon(spec, mono = false) to runtime.owlIcon(spec, mono = true)
         is AppHit.Android -> runtime.androidApps.icons[app.key] to runtime.androidApps.masks[app.key]
         is AppHit.Shortcut -> runtime.androidApps.icons[shortcut.key] to runtime.androidApps.masks[shortcut.key]
     }
+
+/** Opens the app and counts it for the recent strip and search, wherever it was tapped. */
+internal fun AppHit.open(runtime: Runtime) {
+    runtime.usage.record(key)
+    when (this) {
+        is AppHit.Linux -> runtime.launch(app)
+        is AppHit.Android -> runtime.androidApps.open(app)
+        is AppHit.Shortcut -> runtime.androidApps.open(shortcut)
+        is AppHit.Owl -> runtime.openOwlApp(spec.file.name)
+    }
+}
+
+/**
+ * The icon of the app whose [AppHit.key] is [key], or its silhouette with [mono]; null until loaded or if it
+ * has none. Looked up by kind rather than through [allApps]: widgets ask for it while drawing.
+ */
+internal fun appIconOf(
+    runtime: Runtime,
+    key: String,
+    mono: Boolean,
+): ImageBitmap? {
+    val id = key.substringAfter(':')
+    return when (key.substringBefore(':')) {
+        "a", "s" -> (if (mono) runtime.androidApps.masks else runtime.androidApps.icons)[id]
+        "l" -> (if (mono) runtime.linuxApps.masks else runtime.linuxApps.icons)[id]
+        "o" -> runtime.widgets.apps().firstOrNull { it.file.name == id }?.let { runtime.owlIcon(it, mono) }
+        else -> null
+    }
+}
 
 @Composable
 private fun HitCell(
@@ -383,8 +412,14 @@ private fun StripCell(
     }
 }
 
+/** [limit] apps the user knows, for the Style menu's previews: the recent ones, topped up from the drawer's. */
+internal fun familiarApps(
+    runtime: Runtime,
+    limit: Int,
+): List<AppHit> = (recentApps(runtime, limit) + allApps(runtime)).distinctBy { it.key }.take(limit)
+
 /** The apps opened lately, last opened first; ones not installed (or not loaded yet) are skipped. */
-private fun recentApps(
+internal fun recentApps(
     runtime: Runtime,
     limit: Int,
 ): List<AppHit> {
@@ -461,26 +496,7 @@ internal fun AppPanel(
                     ProfileTabs(tabs, tab, onPick = { state.tab = it })
                     Spacer(Modifier.weight(1f))
                 }
-                Box(
-                    Modifier
-                        .size(44.dp)
-                        .clip(LauncherStyle.shape(22.dp))
-                        .background(Palette.surface)
-                        .clickable(onClick = onSettings),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(Icons.Gear, "settings", Modifier.size(22.dp), colorFilter = ColorFilter.tint(Palette.accent))
-                    // Updates are waiting: settings › system updates lists them.
-                    if ((runtime.updates.pending?.count ?: 0) > 0) {
-                        Box(
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(8.dp)
-                                .size(8.dp)
-                                .background(Palette.red, CircleShape),
-                        )
-                    }
-                }
+                SettingsButton(runtime, onSettings)
             }
             // Only as tall as its rows, so taps above a short list reach the scrim behind and close the panel.
             Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp), verticalArrangement = Arrangement.Bottom) {
@@ -782,6 +798,34 @@ private fun AppActions(
     Popup(popupPositionProvider = position, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
         MenuItems(actions, onDismiss, minWidth = 160.dp, itemPadding = 12.dp, fontSize = TextSize.Item) {
             if (menu != null) ShortcutRows(offered, menu, onDismiss, TextSize.Item)
+        }
+    }
+}
+
+/** The gear that opens settings, in the drawer and the home menu; a dot while system updates wait. */
+@Composable
+internal fun SettingsButton(
+    runtime: Runtime,
+    onClick: () -> Unit,
+) {
+    Box(
+        Modifier
+            .size(44.dp)
+            .clip(LauncherStyle.shape(22.dp))
+            .background(Palette.surface)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(Icons.Gear, "settings", Modifier.size(22.dp), colorFilter = ColorFilter.tint(Palette.accent))
+        // Updates are waiting: settings › system updates lists them.
+        if ((runtime.updates.pending?.count ?: 0) > 0) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(8.dp)
+                    .background(Palette.red, CircleShape),
+            )
         }
     }
 }
