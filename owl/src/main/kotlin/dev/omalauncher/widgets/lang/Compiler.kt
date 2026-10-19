@@ -24,8 +24,11 @@ class Compiler private constructor(
          * instead of failing on what they don't know. Bump it with every
          * addition a widget could depend on: nodes, properties, builtins.
          */
-        const val LEVEL = 8
+        const val LEVEL = 10
         private const val MAX_ASSET_BYTES = 2 shl 20
+
+        /** Pages as far out as a file can ask for; past Int's range, the pages either side of them would wrap. */
+        private const val MAX_PAGE = 1000
 
         /** An app icon is a shape or two drawn in SVG, not a picture. */
         private const val MAX_ICON_CHARS = 16 * 1024
@@ -94,8 +97,18 @@ class Compiler private constructor(
     /** Whether nodes being compiled are the screen's (true) or the tile's (false); null in components, which can go in either. */
     private var inScreen: Boolean? = null
 
+    /** A face: it runs under the navigation bar, so its nodes may read `screenInset`. Known from the file's first word, so its lets and components see it too. */
+    private val isFace = ast.kind == OwlKind.Face
+
     /** Where a handler calls screen() or close(), which need a screen { } block. */
     private var screenAction: Int? = null
+
+    /**
+     * Compiling a handler or a state's first value, which run once when they run: the only places a
+     * value may come out different each time, as random() does. A let or a property re-reads its
+     * value whenever what it reads changes, and would jump.
+     */
+    private var chance = false
 
     /** Where a handler calls screen(), which an app has no use for. */
     private var openScreen: Int? = null
@@ -109,6 +122,16 @@ class Compiler private constructor(
     ) {
         val v = SINCE[feature] ?: return
         if (v > (needs?.first ?: 1)) needs = Triple(v, feature, pos)
+    }
+
+    private fun <T> chancy(f: () -> T): T {
+        val was = chance
+        chance = true
+        try {
+            return f()
+        } finally {
+            chance = was
+        }
     }
 
     private fun fail(
@@ -138,7 +161,7 @@ class Compiler private constructor(
         for (d in body.decls) {
             when (d) {
                 is Decl.Source -> globals[slots[d.name]!!] = source(d)
-                is Decl.State -> globals[slots[d.name]!!] = Global.State(d.name, ex(d.init, root), d.persist)
+                is Decl.State -> globals[slots[d.name]!!] = Global.State(d.name, chancy { ex(d.init, root) }, d.persist)
                 is Decl.Asset -> globals[slots[d.name]!!] = asset(d)
                 is Decl.Let -> {
                     val g = let(d)
@@ -159,9 +182,18 @@ class Compiler private constructor(
         val meta = body.decls.filterIsInstance<Decl.Meta>().flatMap { it.fields }.associate { it.name to constant(it.value, "meta values") }
         val requires = requires(body.decls.filterIsInstance<Decl.Requires>().flatMap { it.fields })
         if (ast.kind == OwlKind.App) return app(body, meta, level, requires, globals.map { it!! }, triggers)
-        for (p in body.props) if (p.name !in WIDGET_PROPS) fail("unknown widget property '${p.name}' (${WIDGET_PROPS.joinToString()})", p.pos)
+        // A face is a widget that fills a home page of its own, the whole screen: it gets a screen's room, and
+        // has no tile's size.
+        val allowed = if (isFace) FACE_PROPS else WIDGET_PROPS
+        for (p in body.props) {
+            if (p.name !in allowed) fail("unknown ${ast.kind.word} property '${p.name}' (${allowed.joinToString()})", p.pos)
+        }
+        if (isFace) {
+            since(FACE_FILE, 0)
+            maxNodes = MAX_SCREEN_NODES
+        }
         val screens = body.items.filter { it is Item.Node && it.type == "screen" }.map { it as Item.Node }
-        if (screens.size > 1) fail("a widget has one screen { }", screens[1].pos)
+        if (screens.size > 1) fail("a ${ast.kind.word} has one screen { }", screens[1].pos)
         inScreen = false
         val rootNodes = items(body.items - screens.toSet(), root, Children.UI)
         if (rootNodes.isEmpty()) fail("a widget needs at least one node, like Text { text: \"hi\" }", 0)
@@ -169,6 +201,9 @@ class Compiler private constructor(
         val screen = screens.firstOrNull()?.let { screen(it) }
         val onTap = body.handlers.firstOrNull()?.let { handler(it, root) }
         if (screen == null) screenAction?.let { fail("screen() and close() need a screen { } block in the widget", it) }
+        val background = props["background"]?.let { if (gradient(it.value)) since(GRADIENT_BACKGROUND, it.pos); ex(it.value, root) }
+        // Whether the status bar stays over a face, read as it changes: a face can hide it for a game and bring it back.
+        val statusBar = props["statusBar"]?.let { ex(it.value, root) }
         checkLevel(level)
 
         return Program(
@@ -176,11 +211,15 @@ class Compiler private constructor(
             meta = meta,
             level = level,
             size = props["size"]?.let { cells(it) },
+            isFace = isFace,
+            statusBar = statusBar,
+            kind = ast.kind,
             minSize = props["minSize"]?.let { cells(it) } ?: (1 to 1),
-            page = props["page"]?.let { constInt(it) }?.coerceAtLeast(1) ?: 1,
+            // A face goes left of page 1 by default: 0, and -1, -2, ... further left. A tile never does.
+            page = props["page"]?.let { constInt(it) }?.let { if (isFace) it.coerceIn(-MAX_PAGE, MAX_PAGE) else it.coerceIn(1, MAX_PAGE) } ?: if (isFace) 0 else 1,
             order = props["order"]?.let { constInt(it) } ?: 0,
             padding = props["padding"]?.let { constant(it.value, "padding").num() } ?: 12.0,
-            background = props["background"]?.let { ex(it.value, root) },
+            background = background,
             globals = globals.map { it!! },
             root = rootNodes,
             screen = screen?.first,
@@ -381,6 +420,25 @@ class Compiler private constructor(
         commands += "$what GET " + (whole ?: "$start…")
     }
 
+    /**
+     * A `font` that isn't one of the words names a font file: an asset, a file in this system or a URL (owl 10).
+     * One only known at run time, a state's or a source's, needs no level: widgets from before owl 10 pick a
+     * word that way, and below 10 one that turns out to be a file draws in the launcher's font.
+     */
+    private fun font(
+        e: Expr,
+        s: Scope,
+    ) {
+        if (e is Expr.Cond) return listOf(e.a, e.b).forEach { font(it, s) }
+        val words = ENUMS.getValue("font")
+        if (e is Expr.Name && e.name in words) return
+        val text = constText(e, s)
+        if (text in words) return
+        val asset = e is Expr.Name && globals.any { it is Global.Asset && it.name == e.name }
+        if (text != null || asset || e is Expr.Interp) since(FONT_FILE, e.pos)
+        webFile(e, s, "font")
+    }
+
     /** The text [e] starts with whatever its values turn out to be: "https://x.test/" for "https://x.test/${id}.svg". */
     private fun constantStart(
         e: Expr,
@@ -469,6 +527,7 @@ class Compiler private constructor(
                 // Listed with the commands, so the store shows it before anyone installs the widget.
                 if (e.name == "notifications") commands += "read Android notifications (apps, titles and text)"
                 if (e.name == "apps") commands += "read installed Android apps (names, packages and icons)"
+                if (e.name == "recent") commands += "read the recently opened apps"
                 Global.Source(d.name, "android.${e.name}", null, (every ?: 60.0).coerceAtLeast(1.0), false, 0)
             }
             else -> fail("a source is cmd(\"...\"), stream(\"...\"), http(\"...\"), file(\"...\"), clock, or android.${ANDROID.joinToString("/")}", e.pos)
@@ -524,7 +583,8 @@ class Compiler private constructor(
                 ex(d.expr, root)
             }
         if (d.kind != "every" && expr.const != null) fail("${d.kind} needs a value that changes, like a state or a source", d.expr.pos)
-        return Trigger(TriggerKind.of(d.kind), expr, handler(Handler(d.kind, d.stmts, d.pos), root, TRIGGER_PARAMS[d.kind].orEmpty()), d.pos)
+        if (d.first) since(ON_FIRST, d.pos)
+        return Trigger(TriggerKind.of(d.kind), expr, handler(Handler(d.kind, d.stmts, d.pos), root, TRIGGER_PARAMS[d.kind].orEmpty()), d.pos, d.first)
     }
 
     private fun component(d: Decl.Component): Component {
@@ -604,6 +664,8 @@ class Compiler private constructor(
         for ((k, v) in c.named) if (k !in DRAW_NAMED) fail("unknown option '$k' (${DRAW_NAMED.joinToString()})", v.pos)
         since(c.name, c.pos)
         if (c.name == "image") webFile(c.args[0], scope, "image")
+        if (c.name == "text" && c.named.any { it.first in TEXT_STYLE }) since(CANVAS_TEXT_STYLE, c.pos)
+        c.named.firstOrNull { it.first == "font" }?.let { font(it.second, scope) }
         nodes++
         return WNode.Draw(
             c.name,
@@ -621,7 +683,7 @@ class Compiler private constructor(
         n: Item.Node,
         scope: Scope,
     ): WNode {
-        if (++nodes > maxNodes) fail("more than $maxNodes nodes; ${if (maxNodes == MAX_NODES) "widgets" else "screens"} should stay small", n.pos)
+        if (++nodes > maxNodes) fail("more than $maxNodes nodes; ${if (maxNodes == MAX_NODES) "widgets" else "screens and faces"} should stay small", n.pos)
         if (n.type == "screen") fail("screen { } goes at the top of the widget, next to its nodes", n.pos)
         val body = n.body
         body.decls.firstOrNull()?.let { fail("declarations belong at the top of the widget", it.pos) }
@@ -635,12 +697,19 @@ class Compiler private constructor(
             // On a tile it would raise the keyboard whenever its page shows; in a component the launcher ignores it there.
             if (p.name == "focus" && inScreen == false) fail("focus only works in a screen { }", p.pos)
             since("${n.type}.${p.name}", p.pos)
+            if (p.name == "background" && gradient(p.value)) since(GRADIENT_BACKGROUND, p.pos)
+            if (p.name == "frost") since("frost", p.pos)
+            if (p.name == "font") font(p.value, scope)
             props[p.name] = prop(p, scope)
         }
         val handlers =
             body.handlers.associate { h ->
                 if (h.name !in HANDLER_PARAMS) fail("unknown handler '${h.name}' (${HANDLER_PARAMS.keys.joinToString()})", h.pos)
                 HANDLER_KINDS[h.name]?.let { kinds -> if (n.type !in kinds) fail("${h.name} only works on ${kinds.joinToString(" and ")}", h.pos) }
+                if (h.name == "onLongPress" && inScreen == false && !isFace) {
+                    fail("long-press on a tile belongs to the home screen, which lifts it to move and resize it; onLongPress works in faces, apps and a screen { }", h.pos)
+                }
+                since(h.name, h.pos)
                 h.name to handler(h, scope)
             }
         val animations =
@@ -649,6 +718,8 @@ class Compiler private constructor(
                 a.name to ex(a.value, scope)
             }
         since(n.type, n.pos)
+        // A tap outside or Back asks it to close; without a handler for that, nothing could.
+        if (n.type == "Popup" && "onDismiss" !in handlers) fail("a Popup needs onDismiss, run when a tap outside it or Back closes it: onDismiss: open = false", n.pos)
         if (n.type == "Terminal") {
             terminal = true
             val command = props["command"]
@@ -687,8 +758,18 @@ class Compiler private constructor(
                 given[name]?.let { ex(it.value, scope) } ?: c.defaults[i] ?: fail("${n.type} needs '$name'", n.pos)
             }
         val wrapper = body.props.filter { it.name !in c.params }.associate { it.name to prop(it, scope) }
+        body.props.firstOrNull { it.name == "frost" && it.name !in c.params }?.let { since("frost", it.pos) }
         return WNode.Use(n.type, args, wrapper, c.body, n.pos)
     }
+
+    /** Whether a background is written as a gradient, `linear(...)` or `radial(...)`, or chooses one: they need owl 10 there. */
+    private fun gradient(e: Expr): Boolean =
+        when (e) {
+            is Expr.Call -> e.name == "linear" || e.name == "radial"
+            is Expr.Cond -> gradient(e.a) || gradient(e.b)
+            is Expr.Binary -> e.op == "??" && (gradient(e.a) || gradient(e.b))
+            else -> false
+        }
 
     private fun enumOrNull(
         name: String,
@@ -713,61 +794,113 @@ class Compiler private constructor(
         params: List<String> = HANDLER_PARAMS[h.name].orEmpty(),
     ): Action {
         val inner = Scope(scope, params)
-        val stmts =
-            h.stmts.map { s ->
-                when (s) {
-                    is Stmt.Assign -> {
-                        val slot = slots[s.name]
-                        if (slot == null || s.name !in states) {
-                            fail(if (slot == null) "unknown state '${s.name}'; declare it with: state ${s.name} = ..." else "'${s.name}' isn't a state and can't be assigned", s.pos)
-                        }
-                        val call = s.value as? Expr.Call
-                        if (call?.name == "run") {
-                            // result = run("..."): the output arrives later, when the command finishes.
-                            if (call.args.size != 1 || call.named.isNotEmpty()) fail("run takes one command", call.pos)
-                            val command = ex(call.args[0], inner)
-                            listCommand(call.args[0], command, inner, "run(…)")
-                            guest = true
-                            val run: (Env) -> Unit = { env -> env.host.runInto(command(env).toString(), slot) }
-                            return@map run
-                        }
-                        if (call?.name == "post") return@map post(call, inner, slot)
-                        val v = ex(s.value, inner)
-                        val run: (Env) -> Unit = { env -> env.host.write(slot, v(env)) }
-                        run
-                    }
-                    is Stmt.Do -> {
-                        val call = s.call as Expr.Call
-                        if (call.name == "post") return@map post(call, inner, null)
-                        val arity = Builtins.actions[call.name] ?: fail("'${call.name}' isn't an action (${Builtins.actions.keys.joinToString()})", call.pos)
-                        if (call.args.size !in arity) fail("${call.name} takes ${arity.first}-${arity.last} values", call.pos)
-                        val args = call.args.map { ex(it, inner) }
-                        ACTION_WORDS[call.name]?.let { w ->
-                            val c = (args[0].const as? Str)?.v
-                            if (c != null && c !in w.words && !(w.numbers && c.toDoubleOrNull() != null)) fail(w.message, call.pos)
-                        }
-                        since(call.name, call.pos)
-                        if (call.name == "sound") webFile(call.args[0], inner, "sound")
-                        if (call.name == "screen" || call.name == "close") screenAction = screenAction ?: call.pos
-                        if (call.name == "screen") openScreen = openScreen ?: call.pos
-                        if (call.name in setOf("run", "terminal", "app")) {
-                            listCommand(call.args[0], args[0], inner, "${call.name}(…)")
-                            // A tap on terminal(...) or app(...) without Linux offers to install it; run(...) would fail unseen.
-                            if (call.name == "run") guest = true
-                        }
-                        val run: (Env) -> Unit = { env -> env.host.act(call.name, args.map { it(env) }) }
-                        run
-                    }
-                }
-            }
+        val run = chancy { block(h.stmts, inner) }
         return Action(params) { env, values ->
             val e = if (params.isEmpty()) env else env.child(*Array(params.size) { values.getOrElse(it) { Null } })
             // Handlers run from touch events: a failure is reported, never thrown into the UI.
             try {
-                env.host.budget.run { stmts.forEach { it(e) } }
+                env.host.budget.run { run(e) }
             } catch (x: RuntimeException) {
                 env.host.report("${h.name}: ${x.message ?: x}")
             }
+        }
+    }
+
+    /** Handler statements, in order. A `let` opens a frame that the statements after it in its block see. */
+    private fun block(
+        stmts: List<Stmt>,
+        scope: Scope,
+    ): (Env) -> Unit {
+        val steps = ArrayList<(Env) -> Env>()
+        var s = scope
+        for (st in stmts) {
+            when (st) {
+                is Stmt.Let -> {
+                    since(HANDLER_LET, st.pos)
+                    // One name, one meaning: a let named like a state would read as the let but assign the state.
+                    if (st.name in slots || lookup(st.name, s) != null) fail("'${st.name}' is already a name here; give the let a name of its own", st.pos)
+                    val v = ex(st.value, s)
+                    s = Scope(s, listOf(st.name))
+                    steps += { env -> env.child(v(env)) }
+                }
+                is Stmt.If -> {
+                    since(HANDLER_IF, st.pos)
+                    val cond = ex(st.cond, s)
+                    val then = block(st.then, s)
+                    val orElse = block(st.orElse, s)
+                    steps += { env ->
+                        if (cond(env).truthy) then(env) else orElse(env)
+                        env
+                    }
+                }
+                else -> {
+                    val run = statement(st, s)
+                    steps += { env ->
+                        run(env)
+                        env
+                    }
+                }
+            }
+        }
+        return { env -> steps.fold(env) { e, step -> step(e) } }
+    }
+
+    /** An assignment or an action. */
+    private fun statement(
+        s: Stmt,
+        scope: Scope,
+    ): (Env) -> Unit {
+        return when (s) {
+            is Stmt.Assign -> {
+                val slot = slots[s.name]
+                // A state wins, even with a local of its name in reach (onChange: value = value): widgets did that before owl 9.
+                if (s.name !in states && lookup(s.name, scope) is Ref.Local) fail("'${s.name}' is a let or a value given to the handler, not a state, so it can't be assigned", s.pos)
+                if (slot == null || s.name !in states) {
+                    fail(if (slot == null) "unknown state '${s.name}'; declare it with: state ${s.name} = ..." else "'${s.name}' isn't a state and can't be assigned", s.pos)
+                }
+                val call = s.value as? Expr.Call
+                if (call?.name == "run") {
+                    // result = run("..."): the output arrives later, when the command finishes.
+                    if (call.args.size != 1 || call.named.isNotEmpty()) fail("run takes one command", call.pos)
+                    val command = ex(call.args[0], scope)
+                    listCommand(call.args[0], command, scope, "run(…)")
+                    guest = true
+                    val run: (Env) -> Unit = { env -> env.host.runInto(command(env).toString(), slot) }
+                    run
+                } else if (call?.name == "post") {
+                    post(call, scope, slot)
+                } else {
+                    val v = ex(s.value, scope)
+                    val run: (Env) -> Unit = { env -> env.host.write(slot, v(env)) }
+                    run
+                }
+            }
+            is Stmt.Do -> {
+                val call = s.call as Expr.Call
+                if (call.name == "post") return post(call, scope, null)
+                val arity = Builtins.actions[call.name] ?: fail("'${call.name}' isn't an action (${Builtins.actions.keys.joinToString()})", call.pos)
+                if (call.args.size !in arity) fail("${call.name} takes ${arity.first}-${arity.last} values", call.pos)
+                val args = call.args.map { ex(it, scope) }
+                ACTION_WORDS[call.name]?.let { w ->
+                    val c = (args[0].const as? Str)?.v
+                    if (c != null && c !in w.words && !(w.numbers && c.toDoubleOrNull() != null)) fail(w.message, call.pos)
+                }
+                since(call.name, call.pos)
+                if (call.name == "sound") webFile(call.args[0], scope, "sound")
+                if (call.name == "screen" || call.name == "close") screenAction = screenAction ?: call.pos
+                if (call.name == "screen") openScreen = openScreen ?: call.pos
+                // The reviewer sees what a widget would ask, as it sees a command.
+                if (call.name == "ask") commands += (args[0].const as? Str)?.v?.let { "ask the agent: $it" } ?: "ask the agent something built from widget values"
+                if (call.name in setOf("run", "terminal", "app")) {
+                    listCommand(call.args[0], args[0], scope, "${call.name}(…)")
+                    // A tap on terminal(...) or app(...) without Linux offers to install it; run(...) would fail unseen.
+                    if (call.name == "run") guest = true
+                }
+                val run: (Env) -> Unit = { env -> env.host.act(call.name, args.map { it(env) }) }
+                run
+            }
+            // block() takes the others.
+            is Stmt.If, is Stmt.Let -> throw IllegalStateException("not a single statement")
         }
     }
 
@@ -1004,7 +1137,9 @@ class Compiler private constructor(
             return Ev(null, { env -> Num(env.host.time()) }, Fast { env -> env.host.time() })
         }
         // A widget's screen always ends above the navigation bar; only an app with `edge` runs under it.
-        if (e.name == "screenInset" && ast.kind != OwlKind.App) fail("screenInset is for apps with edge: true; a widget's screen ends above the navigation bar", e.pos)
+        if (e.name == "screenInset" && ast.kind != OwlKind.App && !(isFace && inScreen != true)) {
+            fail("screenInset is for apps with edge: true and faces; a widget's screen ends above the navigation bar", e.pos)
+        }
         // Not reserved: widgets that already declare `rows` or `cols` keep their own.
         if (e.name in TILE || e.name == LINUX) {
             since(e.name, e.pos)
@@ -1034,6 +1169,18 @@ class Compiler private constructor(
         if (e.name in setOf("cmd", "stream", "http", "file")) fail("${e.name}(...) is a source: source x = ${e.name}(\"...\")", e.pos)
         val b = Builtins.all[e.name] ?: fail("unknown function '${e.name}'", e.pos)
         since(e.name, e.pos)
+        if (e.name == "fmtTime" && e.args.size > 2) since(FMT_TIME_ZONE, e.pos)
+        if (e.name == "flatten" && e.args.size > 1) since(FLATTEN_DEPTH, e.pos)
+        if ((e.name == "random" || e.name == "shuffle" && e.args.size == 1) && !chance) {
+            fail(
+                if (e.name == "random") {
+                    "random() gives a new number each time it's read; set a state with it in a handler, like onTap: roll = random(1, 6), or use hash(seed, i) in a let"
+                } else {
+                    "shuffle(list) shuffles anew each time it's read; give it a seed, shuffle(list, seed), with the seed a state set to random(1000000) in a handler"
+                },
+                e.pos,
+            )
+        }
         if (e.named.isNotEmpty()) fail("${e.name} takes no named arguments", e.named[0].second.pos)
         if (e.args.size < b.min || e.args.size > b.max) {
             fail("${e.name} takes ${if (b.min == b.max) "${b.min}" else "${b.min}-${b.max}"} arguments, not ${e.args.size}", e.pos)

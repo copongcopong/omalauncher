@@ -5,7 +5,9 @@
 > Four changes so far, aimed at a foldable's inner screen and a terminal over its wallpaper:
 >
 > - The home grid is 12 columns spanning the whole screen instead of two 6-column pages side by
->   side, so a widget tile can be full width.
+>   side, so a widget tile can be full width. Since the 0.9.0 sync that is upstream's own
+>   `home.columns` and `home.single-page` (Style › home), which this fork defaults to 12 and on
+>   and widens to 4..12; upstream's own defaults, 6 columns and two pages, are a setting away.
 > - The terminal's ⌨ button sits at the bottom left rather than the bottom right, in both the
 >   home screen's terminal tiles and a Linux window's own activity.
 > - A terminal's background can be see-through: `terminal.opacity` in
@@ -19,7 +21,7 @@
 >   links the format's docs: [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md).
 >
 > It builds as `dev.omalauncher.fold`, so it installs beside the Play app. Upstream's release
-> notes are the [CHANGELOG](CHANGELOG.md); this fork's own changes are under `Unreleased` there.
+> notes are the [CHANGELOG](CHANGELOG.md), with this fork's own release at its top.
 
 ## Omalauncher Z, on the Fold
 
