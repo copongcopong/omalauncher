@@ -3,6 +3,7 @@ package dev.omalauncher.ui
 import android.content.Context
 import android.graphics.Bitmap
 import android.view.MotionEvent
+import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
@@ -17,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -88,7 +90,9 @@ class EmbeddedBrowser internal constructor(
      */
     internal fun attach(context: Context): TileWebView {
         view?.let { kept ->
-            if (kept.isAttachedToWindow) return kept
+            // The holder this tile had before still has it (the widget was rebuilt, or the tile left and came back):
+            // a view with a parent can't be handed to a new one, and the second add is what Compose throws on.
+            (kept.parent as? ViewGroup)?.removeView(kept)
             // Back on screen: a paused page's timers run again.
             kept.onResume()
             return kept
@@ -102,9 +106,13 @@ class EmbeddedBrowser internal constructor(
         return v
     }
 
-    /** The tile has gone off screen. The view isn't destroyed: it keeps its page, and its timers wait. */
+    /**
+     * The tile has gone off screen: the view leaves its holder, so the next tile to draw it can take it.
+     * It isn't destroyed, though: it keeps its page, and its timers wait.
+     */
     fun detach(view: WebView) {
         if (this.view !== view) return
+        (view.parent as? ViewGroup)?.removeView(view)
         view.onPause()
     }
 
@@ -148,6 +156,8 @@ class EmbeddedBrowser internal constructor(
         // The tile lets go of it first: a destroyed view can't be cleared.
         tiles?.unfocused(this)
         view?.let {
+            // Out of its holder before it goes: destroy() on a view the window still holds is a crash of its own.
+            (it.parent as? ViewGroup)?.removeView(it)
             it.stopLoading()
             it.destroy()
         }
@@ -290,16 +300,20 @@ fun BrowserView(
     DisposableEffect(tiles, browser) { onDispose { if (tiles != null && tiles.browser === browser) tiles.deactivate() } }
     val background = Palette.background
     Box(modifier.onGloballyPositioned { browser.bounds = it.boundsInWindow().translate(0f, tiles?.lift ?: 0f) }) {
-        AndroidView(
-            factory = { browser.attach(it) },
-            update = {
-                it.setBackgroundColor(background.toArgb())
-                // Only a tapped page of a home tile takes touches; until then the overlay below is the tile's.
-                it.inert = tiles != null && !active
-            },
-            onRelease = { browser.detach(it) },
-            modifier = Modifier.fillMaxSize(),
-        )
+        // Keyed on the page itself: a tile rebuilt for a new url is a holder of its own, and the same page keeps
+        // the view it already has (and the scroll and history in it) instead of a holder swapping views under it.
+        key(browser) {
+            AndroidView(
+                factory = { browser.attach(it) },
+                update = {
+                    it.setBackgroundColor(background.toArgb())
+                    // Only a tapped page of a home tile takes touches; until then the overlay below is the tile's.
+                    it.inert = tiles != null && !active
+                },
+                onRelease = { browser.detach(it) },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         if (tiles != null && !active) {
             // Over the WebView: the tap that gives the page its tile, as a terminal's overlay does.
             Box(
