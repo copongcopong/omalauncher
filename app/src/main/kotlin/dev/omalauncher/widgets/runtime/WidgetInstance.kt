@@ -21,6 +21,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.graphics.toArgb
 import dev.omalauncher.linux.ShellResult
+import dev.omalauncher.ui.EmbeddedBrowser
 import dev.omalauncher.ui.EmbeddedTerminal
 import dev.omalauncher.ui.LauncherStyle
 import dev.omalauncher.ui.Palette
@@ -142,6 +143,13 @@ interface Services {
         command: String?,
         fontSize: Double?,
     ): EmbeddedTerminal
+
+    /** A page for a `Browser` node, not shown yet; [url] null shows nothing. */
+    fun browser(
+        url: String?,
+        js: Boolean,
+        zoom: Double,
+    ): EmbeddedBrowser
 }
 
 /**
@@ -394,6 +402,17 @@ class WidgetInstance(
         }
         if (name == "sound") {
             args.firstOrNull()?.takeIf { it != Null }?.let { sound(it.toString()) }
+            return
+        }
+        if (name == "web") {
+            // Every Browser tile the widget has: the word comes from a tap or a trigger, which names no node.
+            if (browsers.isEmpty()) return report("web(...) needs a Browser tile in this widget")
+            when (args.firstOrNull()?.toString()) {
+                "back" -> browsers.values.forEach { it.back() }
+                "forward" -> browsers.values.forEach { it.forward() }
+                "reload" -> browsers.values.forEach { it.reload() }
+                "stop" -> browsers.values.forEach { it.stop() }
+            }
             return
         }
         // An agent or an app opening on its own, from a timer or a fetched value, over whatever the user is doing: like
@@ -784,6 +803,12 @@ class WidgetInstance(
      */
     private val terminals = HashMap<Any, EmbeddedTerminal>()
 
+    /**
+     * Browser nodes' pages, by node. They keep their page while the tile is off screen, and end
+     * with the widget or when their url, script or zoom changes.
+     */
+    private val browsers = HashMap<Any, EmbeddedBrowser>()
+
     fun terminal(
         node: Any,
         command: String?,
@@ -791,6 +816,16 @@ class WidgetInstance(
     ): EmbeddedTerminal {
         terminals[node]?.let { if (it.command == command && it.fontSize == fontSize) return it else it.close() }
         return services.terminal(command, fontSize).also { terminals[node] = it }
+    }
+
+    fun browser(
+        node: Any,
+        url: String?,
+        js: Boolean,
+        zoom: Double,
+    ): EmbeddedBrowser {
+        browsers[node]?.let { if (it.url == url && it.js == js && it.zoom == zoom) return it else it.close() }
+        return services.browser(url, js, zoom).also { browsers[node] = it }
     }
 
     /** [term] is one of this widget's terminals. */
@@ -802,6 +837,8 @@ class WidgetInstance(
         jobs.clear()
         terminals.values.forEach { it.close() }
         terminals.clear()
+        browsers.values.forEach { it.close() }
+        browsers.clear()
         // A change made during the write interval would otherwise be lost.
         if (persisted.isNotEmpty()) save(persisted.map { read(it) })
     }

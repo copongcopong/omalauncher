@@ -46,6 +46,19 @@ snapshots the surface tree, redraws only the dirty region of the SurfaceView
 callbacks. Hidden windows get no frame callbacks, so their clients stop
 drawing.
 
+## Browser tiles
+
+A widget's `Browser` node draws an Android System WebView inside the tile
+(`ui/BrowserView.kt`), not a client of the Wayland compositor. Nothing runs in
+the guest, so a file with a Browser needs no Linux, and its frames go into the
+tile the way any other view's do. What the page may reach is decided there and
+nowhere else: https only, no file or content access, script and DOM storage only
+when the node asks for `js`, and no JavaScript bridge. Every Browser in the app
+shares one WebView profile, so cookies and sign-ins are shared between tiles.
+Home's input owner, `TerminalTiles`, doesn't take a Browser tile in: a terminal
+and a tile's text fields take the keyboard and lift the home screen for it,
+while a WebView keeps an IME connection of its own and its tile stays put.
+
 ## GPU acceleration
 
 Opt-in, in settings › linux. The device node picks the driver. Mali (v10+:

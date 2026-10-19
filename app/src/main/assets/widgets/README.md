@@ -20,8 +20,8 @@ It waits until the launcher has loaded the file as saved, prints compile errors
 and problems found while running, and exits 1 if there are any. The preview is
 the tile as it looks on the home screen, at its size there, after its sources
 have loaded: open it to see whether text fits and the layout works, since you
-can't see the phone. Terminal tiles aren't previewed. Errors also go to
-`.errors/<file>.txt`, and the tile shows them.
+can't see the phone. Terminal and Browser tiles aren't previewed. Errors also
+go to `.errors/<file>.txt`, and the tile shows them.
 
 Widgets sit on a grid of `home.columns` columns of roughly square cells (12 in this
 fork, so an unfolded foldable's inner screen has about 13 rows), bordered like Omarchy
@@ -86,7 +86,7 @@ that read it redraw. Properties are separated by newlines or `;`.
 | `asset logo = base64"iVBOR..."` | an embedded image (under 2 MB) for `Image { src: logo }`, or a font for `font: logo` (owl 10, see Fonts), so the widget is one self-contained file |
 | `requires { pacman: ["jq", "curl"] }` | packages the widget's commands need; see Dependencies |
 | `meta { description: "..."; version: "1.0"; license: "MIT"; category: "news" }` | needed to publish to the widget store (see Sharing) |
-| `meta { owl: 10 }` | the language version the widget needs (this launcher has 10; the default is 1). Older launchers say "update the launcher" instead of failing on what they don't know. `Terminal` needs 2, `sprite` 3, triggers, `file`, `Slider`, `Input`, `android.notifications`, `android.volume`, `volume` and `notification` need 4, and `screen { }`, `screen()`, `close()`, `screenWidth` and `screenHeight` need 5, `Input`'s `focus`, `sh()` and `corners` 6, and `android.alarm`, `android.modes`, `torch`, `share` and `haptic` 7, and `app "…" { }` files, `android.apps`, `enc`, `post`, images from the web, `sound` and `screenInset` 8, and `parseTime`, `fmtAgo`, `fmtNum`, `random`, `shuffle`, `hash`, `fmtTime`'s zone and language, `set`, `remove`, `merge`, `reduce`, `scan`, `groupBy`, `toJson`, `capitalize`, `asin`, `acos`, `flatten`'s depth, `on … first`, and `if` and `let` in handlers 9, and `face "…" { }` files, `onLongPress`, Text's `spans`, `fontWeight` and `letterSpacing`, gradient backgrounds, `frost`, fonts of a widget's own and Canvas `text`'s `font`, `fontWeight`, `italic` and `letterSpacing`, `android.agents`, `android.recent`, `open`, `ask`, `Popup` and Input's `underline` 10; using them without declaring it is an error |
+| `meta { owl: 11 }` | the language version the widget needs (this launcher has 11; the default is 1). Older launchers say "update the launcher" instead of failing on what they don't know. `Terminal` needs 2, `sprite` 3, triggers, `file`, `Slider`, `Input`, `android.notifications`, `android.volume`, `volume` and `notification` need 4, and `screen { }`, `screen()`, `close()`, `screenWidth` and `screenHeight` need 5, `Input`'s `focus`, `sh()` and `corners` 6, and `android.alarm`, `android.modes`, `torch`, `share` and `haptic` 7, and `app "…" { }` files, `android.apps`, `enc`, `post`, images from the web, `sound` and `screenInset` 8, and `parseTime`, `fmtAgo`, `fmtNum`, `random`, `shuffle`, `hash`, `fmtTime`'s zone and language, `set`, `remove`, `merge`, `reduce`, `scan`, `groupBy`, `toJson`, `capitalize`, `asin`, `acos`, `flatten`'s depth, `on … first`, and `if` and `let` in handlers 9, and `face "…" { }` files, `onLongPress`, Text's `spans`, `fontWeight` and `letterSpacing`, gradient backgrounds, `frost`, fonts of a widget's own and Canvas `text`'s `font`, `fontWeight`, `italic` and `letterSpacing`, `android.agents`, `android.recent`, `open`, `ask`, `Popup` and Input's `underline` 10, and `Browser` and `web` 11; using them without declaring it is an error |
 | `onTap: ...` | runs when the tile (not a button inside it) is tapped |
 | `screen { ... }` | a full-screen view of the widget, opened with `screen()`; see Screens (owl 5) |
 | `every 10s { ... }`, `at t { ... }`, `when c { ... }`, `on x { ... }` | statements that run without a tap; see Triggers |
@@ -305,6 +305,7 @@ when lists reorder), and `let x = ...` inside any node.
 | `Input` | a one-line text field: `text` (what it shows; replaces what's typed when it changes), `placeholder`, `color`, `fontSize`, `clear: true` (empty it after submitting), `underline: false` (no line under it, for a field inside a frame of its own, owl 10), `focus: true` (focus it and raise the keyboard when the screen opens, or when `focus` turns true; only in a `screen { }`, owl 6). `onChange` gets the text as `value` as it's typed, `onSubmit` when the keyboard's send key is pressed (owl 4) |
 | `Popup` | a menu over everything, the tile, the bar and other tiles, at the start of the node that holds it: `position: below` (the default) or `above`, kept on screen and on the other side when there's no room, `gap`, `align`. Show it with `visible`; a tap outside it or Back runs `onDismiss`, which it must have, so it can close: `Box { Text { text: "menu"; onTap: open = true }  Popup { visible: open; onDismiss: open = false; … } }`. Framed like the launcher's menus unless it has a `background` or `border`. It takes no room where it's written (owl 10) |
 | `Terminal` | a live terminal (foot) in the tile: `command` (default: the login shell), `fontSize` (points; foot.ini has 8). Fills the space unless sized. See below |
+| `Browser` | a web page in the tile, drawn by Android's own WebView: `url` (https at a host written in the file), `js: true` to let the page run script (off by default), `zoom` (1; the page's text size, 0.5 to 3). `onNavigate`, `onTitle` and `onProgress` report on the page. Fills the space unless sized; two to a file at most, and it isn't previewed (owl 11). See below |
 
 Every node also takes:
 
@@ -850,6 +851,72 @@ widget "shell" {
   is removed or its file changes. When `command` exits, the tile offers a restart;
   use `"btop; exec bash"` to fall back to a shell.
 - `padding: 0` lets the terminal fill the tile's frame.
+
+## Browser
+
+A web page inside the tile, drawn by Android's own WebView, so it needs no Linux (owl 11):
+
+```owl
+widget "lobsters" {
+  size: 6x4
+  padding: 0
+  meta { owl: 11 }
+  state title = ""
+  Column {
+    Row {
+      gap: 8
+      Button { text: "‹"; onTap: web("back") }
+      Text { text: title; style: muted; maxLines: 1; weight: 1 }
+    }
+    Browser { url: "https://lobste.rs/"; zoom: 0.9; weight: 1; onTitle: title = value }
+  }
+}
+```
+
+- The page loads over https, from a host written out in the file: `"https://example.com/post/${enc(id)}"`.
+  `http://`, `file:`, `content:`, `javascript:` and `data:` don't compile, a value can't be the host, and
+  values go through `enc()` as a `http(...)` URL's do. A link in the page that goes to one of those loads
+  nothing; `tel:` and `mailto:` open the app for them, as `url(...)` does. The store lists the page as
+  `browser GET https://…`, the way it lists an image.
+- Script is off unless the node says `js: true`, and DOM storage comes with it. A page gets no JavaScript
+  bridge, can't reach this phone's files or a `content://` provider, opens no second window, and plays no
+  sound before a tap. An https page can't pull in `http://` either.
+- `zoom` is the page's text size, 1 by default and kept between 0.5 and 3.
+- `onNavigate` gets the `value` of each page it goes to, including a link's; `onTitle` its title, and
+  `onProgress` how much has loaded, 0 to 1.
+- `web("back")` steers it, and so do `"forward"`, `"reload"` and `"stop"`. A handler names no node, so
+  `web(...)` steers every Browser in the file.
+- Two Browsers at most in a file: each is a web view of its own, and a tile has room for two.
+- The page keeps its place while the tile is off screen. It starts again when its `url`, `js` or `zoom`
+  changes, and ends with the widget.
+- Browser tiles aren't previewed; `owl-check` says so in place of a picture.
+- Every Browser in the launcher shares one WebView profile, so signing in in one signs in the rest, and
+  what one page keeps in cookies the others can read.
+
+A face can hold a terminal and a page, one at a time. A state says which tab shows, and the one out of
+sight keeps its page where it was:
+
+```owl
+face "work" {
+  meta { owl: 11 }
+  state tab = "shell"
+  Column {
+    Row {
+      gap: 12
+      Text { text: "shell"; style: small; color: tab == "shell" ? accent : muted; onTap: tab = "shell" }
+      Text { text: "web"; style: small; color: tab == "web" ? accent : muted; onTap: tab = "web" }
+      Spacer { weight: 1 }
+      Text { text: "‹"; style: small; onTap: web("back") }
+    }
+    if tab == "shell" {
+      Terminal { weight: 1 }
+    } else {
+      Browser { url: "https://lobste.rs/"; weight: 1 }
+    }
+    Spacer { height: screenInset }
+  }
+}
+```
 
 ## From scripts
 

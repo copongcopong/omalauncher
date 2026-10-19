@@ -466,6 +466,8 @@ class LangTest {
         assertEquals(true, needs("source r = cmd('date')\nText { text: r }"))
         assertEquals(true, needs("source r = stream('tail -f x')\nText { text: r }"))
         assertEquals(true, needs("meta { owl: 2 }\nTerminal { }"))
+        // A Browser is a web view, not a program: it works without Linux.
+        assertEquals(false, needs("$owl11\nBrowser { url: \"https://a.test/\" }"))
         // Without Linux, tapping app(...) or terminal(...) offers to install it instead.
         assertEquals(false, needs("onTap: app(\"btop\")\nText { text: \"x\" }"))
         assertEquals(true, needs("requires { pacman: [\"jq\"] }\nText { text: \"x\" }"))
@@ -1054,6 +1056,8 @@ class LangTest {
 
     private val owl9 = "meta { owl: 9 }"
 
+    private val owl11 = "meta { owl: 11 }"
+
     private fun <T> inLocale(
         locale: Locale,
         f: () -> T,
@@ -1341,5 +1345,71 @@ class LangTest {
         val slider = (p.root.single() as WNode.Element).children.first() as WNode.Element
         slider.handlers["onChange"]!!.run(Env.root(host), listOf(Num(70.0)))
         assertEquals(Num(70.0), host.slots[0])
+    }
+
+    private fun browserWidget(body: String) = Compiler.compile("widget {\n $owl11\n $body\n}")
+
+    private fun browserError(body: String) = compileError("widget {\n $owl11\n $body\n}")
+
+    @Test fun browserNeedsOwlEleven() {
+        assertTrue(compileError("widget {\n Browser { url: \"https://a.test/\" }\n}").contains("Browser needs owl 11: add meta { owl: 11 }"))
+        assertTrue(compileError("widget {\n meta { owl: 10 }\n Browser { url: \"https://a.test/\" }\n}").contains("Browser needs owl 11"))
+        assertEquals(11, browserWidget("Browser { url: \"https://a.test/\" }").level)
+        // Steered from a node that isn't one: the action came with the Browser.
+        assertTrue(compileError("widget {\n meta { owl: 10 }\n Text { text: \"x\"; onTap: web(\"back\") }\n}").contains("web needs owl 11"))
+    }
+
+    @Test fun browserNodeAndItsHandlers() {
+        val p = browserWidget("state t = \"\"\n Browser { url: \"https://a.test/weather\"; onNavigate: t = value; onTitle: t = value; onProgress: t = value }")
+        val el = p.root.single() as WNode.Element
+        assertEquals("Browser", el.kind)
+        assertTrue(p.browser)
+        assertEquals(false, p.terminal)
+        assertEquals(listOf("browser GET https://a.test/weather"), p.commands)
+        assertEquals(listOf("value"), el.handlers["onNavigate"]!!.params)
+        // The three handlers are a Browser's: nothing else has a page.
+        assertTrue(browserError("state t = \"\"\n Text { text: \"x\"; onTitle: t = value }").contains("onTitle only works on Browser"))
+    }
+
+    @Test fun browsersLoadHttpsOnlyAtAFixedHost() {
+        assertTrue(browserError("Browser { }").contains("a Browser needs a url"))
+        assertTrue(browserError("Browser { url: \"http://a.test/\" }").contains("a Browser loads over https only"))
+        for (bad in listOf("file:///sdcard/x.html", "content://com.android.providers/x", "javascript:alert(1)", "data:text/html,hi")) {
+            val e = browserError("Browser { url: \"$bad\" }")
+            assertTrue(e, e.contains("a Browser loads pages from the web"))
+        }
+        // A value in the URL goes through enc(), and the host is written out in the file.
+        assertTrue(browserError("state v = \"x\"\n Browser { url: \"https://a.test/${'$'}{lower(v)}\" }").contains("isn't put through enc()"))
+        assertTrue(browserError("state v = \"x\"\n Browser { url: \"https://${'$'}{enc(v)}/x\" }").contains("the server in this URL comes from a value"))
+        assertTrue(browserError("state v = \"x\"\n Browser { url: v }").contains("this URL is all a value"))
+        // js and zoom are the Browser's own, and go through as any property's value.
+        val p = browserWidget("state v = \"x\"\n Browser { url: \"https://a.test/${'$'}{enc(v)}\"; js: \"document.title\"; zoom: 1.5 }")
+        assertEquals(listOf("browser GET https://a.test/${Compiler.VALUE}"), p.commands)
+        assertTrue(browserError("Browser { url: \"https://a.test/\"; tabs: 2 }").contains("Browser has no property 'tabs'"))
+        // A page that's null until a source loads is no page: nothing to list, and nothing to check.
+        assertEquals(listOf("http GET https://a.test/"), browserWidget("source s = http(\"https://a.test/\") json\n Browser { url: null }").commands)
+    }
+
+    @Test fun twoBrowsersAtMost() {
+        assertEquals(
+            listOf("browser GET https://a.test/", "browser GET https://b.test/"),
+            browserWidget("Column {\n Browser { url: \"https://a.test/\" }\n Browser { url: \"https://b.test/\" }\n }").commands,
+        )
+        val e = browserError("Column {\n Browser { url: \"https://a.test/\" }\n Browser { url: \"https://b.test/\" }\n Browser { url: \"https://c.test/\" }\n }")
+        assertTrue(e, e.contains("a widget has room for 2 Browsers"))
+        assertTrue(e, e.contains("setting a Browser's url instead"))
+    }
+
+    @Test fun webSteersABrowser() {
+        val p = browserWidget("state t = \"\"\n Browser { url: \"https://a.test/\"; onNavigate: t = value; onTap: web(\"reload\") }")
+        val host = TestHost(p)
+        val el = p.root.single() as WNode.Element
+        el.handlers["onTap"]!!.run(Env.root(host), emptyList())
+        assertEquals(listOf("web reload"), host.actions)
+        el.handlers["onNavigate"]!!.run(Env.root(host), listOf(Str("https://a.test/next")))
+        assertEquals(Str("https://a.test/next"), host.slots[0])
+        // The word is one of four, and there's one of it.
+        assertTrue(browserError("Browser { url: \"https://a.test/\"; onTap: web(\"sideways\") }").contains("web takes back, forward, reload, stop"))
+        assertTrue(browserError("Browser { url: \"https://a.test/\"; onTap: web(\"back\", 2) }").contains("web takes 1-1 values"))
     }
 }
