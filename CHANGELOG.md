@@ -4,6 +4,46 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
+## 0.10.0-z (versionCode 19) – 2026-10-20
+
+Omalauncher Z on upstream 0.10.0 (versionCode 18) and its main: the app drawer is an owl
+panel now, home's layout is `layout.toml`, and owl 11 gained panels, lazy columns, app
+`statusBar`/`title`, `chunk`, `minLines` and the drawer's search ranking.
+
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)):
+
+- A `Browser` node at owl 11: a web page in a tile, drawn by Android's own WebView, https
+  only, script off unless `js: true`, two per widget. Upstream's owl 11 is panels, so 11 is
+  shared: this launcher supports both, and an upstream launcher reading such a file says
+  `Browser` isn't a node rather than a version error.
+- `lock(true)` at owl 13: a widget holds home still (no page turn, swipe up, long press or
+  prompt-bar tap) and the launcher draws a border and a chip whose button lets go. A page
+  that has the tile holds it by itself, until a tap outside, Back or the chip. 13 because
+  upstream took 11 and 12 while the fork was on 0.9.0.
+- The home grid is 12 columns across a foldable's inner screen, from the fork's `home.columns`
+  default, widened to 4..12.
+- The terminal's ⌨ button, `terminal.opacity` and the `keys.toml` extra-keys bar.
+
+## 0.10.0 (versionCode 18) – 2026-10-20
+
+- The app drawer is an owl file: drawer.owl, which you or an agent can edit, with
+  .stock-drawer.owl as the fallback when it's removed or doesn't compile. Owl 11
+  adds `panel "…" { }` files that a swipe on home opens (up: the drawer, down: from
+  the top), picked in settings › gestures or style.toml, with the prompt bar's
+  `query`, `enter`, `onSubmit` and `onKey`; `android.drawer`, `appAction`,
+  `workApps`, `shortcuts()`, `rank` and `strongMatch` for the drawer's apps, search
+  and menus. The Kotlin drawer is gone.
+- Home's layout is a file: ~/.config/omalauncher/home/layout.toml lists home's
+  pages in order and where every widget, app and folder sits. Moving things on the
+  phone rewrites it, and an agent (or you) can edit it to move, resize, pin or
+  reorder; problems show on home and in errors.txt next to it. A widget's `page:`,
+  `order:` and `size:` only place it the first time.
+- Owl 11 also: Column and Grid `lazy: true` and `reverse`, Image `label` for screen
+  readers, Text `minLines`, `chunk(list, n)`, apps without a status bar or title
+  row, and a Column in a Row or Flow is as wide as its content.
+- owl review warns about widgets that poll more often than they need to.
+- Faster: a Shader animates only when it reads time; Canvas text layouts are cached.
+
 ## 0.9.0-z (versionCode 18) – 2026-10-19
 
 Omalauncher Z on upstream 0.9.0 (versionCode 17) and the rest of its main: 51 commits since

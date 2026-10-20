@@ -132,6 +132,7 @@ fun HomeScreen(
                 "store" -> state.show(SettingsPage.Store)
                 "linux" -> state.show(SettingsPage.Linux)
                 "drawer" -> state.open()
+                "settings" -> state.show()
             }
         }
     }
