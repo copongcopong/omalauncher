@@ -1524,7 +1524,7 @@ class LangTest {
         assertTrue(compileError("widget {\n meta { owl: 11 }\n Button { text: \"x\"; onTap: lock(true) }\n}").contains("lock needs owl 13"))
         // Declared, it's an action like any other: one value, handed to the host as it is.
         val p = lockWidget("Column {\n Button { text: \"x\"; onTap: lock(true) }\n Text { text: \"y\" } }")
-        assertEquals(12, p.level)
+        assertEquals(13, p.level)
         val host = TestHost(p)
         val button = (p.root.single() as WNode.Element).children.first() as WNode.Element
         button.handlers["onTap"]!!.run(Env.root(host), emptyList())
@@ -1543,9 +1543,9 @@ class LangTest {
         assertTrue(lockError("Button { text: \"x\"; onTap: lock(\"false\") }").contains("lock takes true or false, not a text"))
         assertTrue(lockError("Button { text: \"x\"; onTap: lock(1) }").contains("lock takes true or false, not a number"))
         // A computed value is the widget's business: a source's bool passes, and so does null.
-        assertTrue(lockWidget("Button { text: \"x\"; onTap: lock(editing) }").level == 12)
+        assertTrue(lockWidget("Button { text: \"x\"; onTap: lock(editing) }").level == 13)
         // A widget that never calls lock is as it was: no lock is no version to ask for.
         assertEquals(1, Compiler.compile("widget {\n Column {\n Button { text: \"x\"; onTap: refresh() }\n Text { text: \"y\" } }\n}").level)
-        assertEquals(12, Compiler.compile("widget {\n meta { owl: 13 }\n Button { text: \"x\" }\n}").level)
+        assertEquals(13, Compiler.compile("widget {\n meta { owl: 13 }\n Button { text: \"x\" }\n}").level)
     }
 }
