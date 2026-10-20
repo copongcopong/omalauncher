@@ -45,17 +45,19 @@ bar over the soft keyboard while an agent edits `keys.toml`; and widgets laid ou
 here the date and weather, system info, Hacker News, a calendar and a battery heatmap.
 
 <p>
-  <img src="docs/fork/fav-sites-menu.jpg" width="32%" alt="A Browser tile showing Hacker News, with its site menu open: hacker news, old.reddit.com, github trending, Omalauncher Z">
-  <img src="docs/fork/fav-sites-page.jpg" width="32%" alt="The same tile on old.reddit.com, with the screen lock chip above it after the page was tapped">
-  <img src="docs/fork/terminal-opacity.jpg" width="32%" alt="A terminal tile with the wallpaper showing through its background, over the koi pond widget">
+  <img src="docs/fork/widget-editor.jpg" width="24%" alt="A widget's file open in the launcher's editor, with the widget list beside it and home behind">
+  <img src="docs/fork/fav-sites-menu.jpg" width="24%" alt="A Browser tile showing Hacker News, with its site menu open: hacker news, old.reddit.com, github trending, Omalauncher Z">
+  <img src="docs/fork/fav-sites-page.jpg" width="24%" alt="The same tile on old.reddit.com, with the screen lock chip above it after the page was tapped">
+  <img src="docs/fork/terminal-opacity.jpg" width="24%" alt="A terminal tile with the wallpaper showing through its background, over the koi pond widget">
 </p>
 
-The `44-fav-sites.owl` example in the action: back, forward and reload on the left, a menu of
-sites on the right, and the pick kept across restarts. The second shot is the same tile on
-old.reddit.com with the screen lock chip up, because the page has the tile and a drag belongs
-to it. The third is `terminal.opacity` at work: foot draws its own background at the alpha the
-style file gives it, so the wallpaper and the koi pond behind it come through while the text
-stays solid.
+The first is home's widgets as files, opened in the launcher's editor with the list of them
+beside it, which is what an agent edits too. The second is `44-fav-sites.owl` in the action:
+back, forward and reload on the left, a menu of sites on the right, and the pick kept across
+restarts. The third is the same tile on old.reddit.com with the screen lock chip up, because
+the page has the tile and a drag belongs to it. The fourth is `terminal.opacity` at work: foot
+draws its own background at the alpha the style file gives it, so the wallpaper and the koi
+pond behind it come through while the text stays solid.
 
 ▶ **[The demo, on YouTube](https://youtube.com/shorts/D3fvVJxXpGE)**, a short screen
 recording of the fork running on the Fold.
