@@ -1065,11 +1065,11 @@ widget "sketch" {
   to focus, so it keeps holding while the bar and the strip ignore taps.
 - `lock(true)` stops what home answers with a swipe or a long press: the page turning, the swipe up
 to the drawer, a tile lifting, and taps on the prompt bar and the recent strip. The widget's own
-taps keep working, so it is no shield; the notification shade and Home stay Android's, as before.
+taps keep working; the notification shade and Home still belong to Android, as before.
 - A Browser tile holds it by itself once it has been tapped: a page's drags are its own, so home waits
 for it to let go (a tap outside the tile, Back, or the chip). Editing home, or arranging a page,
 lets go, so a page can still be moved.
-- It is home-wide, not tile-sized: home's gestures are one surface, so a locked screen is still for
+- It applies to the whole screen. Home's gestures are one surface, so a locked screen holds for
 every tile on it. Two widgets that lock are both honoured, and one letting go leaves the other's
 hold.
 - While it is held, the launcher draws a border around the screen and a chip at top centre, and

@@ -1,6 +1,6 @@
-# Browser node — implementation plan
+# Browser node: implementation plan
 
-Status: implemented and merged in #6 (M1–M5); M6 is partly done, and the device checks below
+Status: implemented and merged in #6 (M1 to M5); M6 is partly done, and the device checks below
 are still open.
 Target: `copongcopong/omalauncher`, a new owl level (11).
 Goal: make `Browser` a first-class OWL node, the sibling of `Terminal`, so a face can
@@ -30,25 +30,30 @@ Where the code and this plan disagree, the code won:
 
 ## Decisions
 
-- **Engine: Android System WebView** (`android.webkit.WebView`). It is already on the
-  phone, adds no APK size, is hardware accelerated, and gives Android cookies and the
-  system IME. It is not full Chrome, but it is the right first version.
-- **Not GeckoView in v1.** It brings a second browser engine, tens of MB, and a much
-  larger build and API surface. Keep the node contract small enough to swap the engine
-  later.
-- **Not a Linux browser over the existing Wayland embedding.** `TerminalTiles` can
-  already claim any Wayland toplevel, so `epiphany`/`surf`/`netsurf` in the guest would
-  work, but startup, RAM and CPU under proot make it a poor daily browser. It remains a
-  possible later `EmbeddedWindow` node, not this one.
-- **No Linux dependency.** Browser-only widgets work without Linux, like widgets that
-  only use `http` and `android.*`. `Program.needsLinux` stays false for `Browser`.
-- **Secure by default.** JavaScript is off unless the file says `js: true`. Only
-  `https://` URLs load. `file://`, `content://`, `javascript:`, `data:` and cleartext
-  `http://` are blocked. No JavaScript bridge is ever installed.
-- **At most two `Browser` nodes per file.** WebViews are expensive; a face needs one,
-  and two leaves room for a spare tab. Enforced by the compiler.
-- **Owl 11.** `Browser` and its actions require `meta { owl: 11 }`, so older launchers
-  reject such files cleanly instead of failing on an unknown node.
+The engine is Android System WebView (`android.webkit.WebView`). It is already on the phone,
+adds no APK size, is hardware accelerated, and gives Android cookies and the system IME. It is
+not full Chrome, but it is the right first version.
+
+GeckoView is out for v1. It brings a second browser engine, tens of MB, and a much larger build
+and API surface. The node contract is kept small enough to swap the engine later.
+
+A Linux browser over the existing Wayland embedding is also out. `TerminalTiles` can already
+claim any Wayland toplevel, so `epiphany`, `surf` or `netsurf` in the guest would work, but
+startup, RAM and CPU under proot make it a poor daily browser. It remains a possible later
+`EmbeddedWindow` node.
+
+There is no Linux dependency. Browser-only widgets work without Linux, like widgets that only
+use `http` and `android.*`, and `Program.needsLinux` stays false for `Browser`.
+
+Security defaults are set for a page on a home screen. JavaScript is off unless the file says
+`js: true`, only `https://` URLs load, `file://`, `content://`, `javascript:`, `data:` and
+cleartext `http://` are blocked, and no JavaScript bridge is ever installed.
+
+A file may hold at most two `Browser` nodes. WebViews are expensive, a face needs one, and two
+leaves room for a spare tab. The compiler enforces it.
+
+`Browser` and its actions require owl 11, so older launchers reject such files cleanly instead
+of failing on an unknown node.
 
 ## Public API
 
@@ -485,19 +490,19 @@ Manual test matrix (needs a device):
 
 ## Milestones
 
-- [x] **M1 — language contract.** Schema, Compiler, Program, Builtins; `LangTest`
+- [x] M1: language contract. Schema, Compiler, Program, Builtins; `LangTest`
       passes; `owl-check` reports the node requires owl 11 and validates URLs. No
       rendering yet.
-- [x] **M2 — render a page.** `EmbeddedBrowser`, `BrowserView`, `AndroidView`,
+- [x] M2: render a page. `EmbeddedBrowser`, `BrowserView`, `AndroidView`,
       `WebViewClient`/`WebChromeClient`, basic settings, theme background. A widget
       with one `Browser` shows a page.
-- [x] **M3 — lifecycle and tabs.** Cached WebView survives `visible` toggles; widget
+- [x] M3: lifecycle and tabs. Cached WebView survives `visible` toggles; widget
       stop destroys it; preview skip; no leaks across page changes.
-- [x] **M4 — input.** Tap-to-activate, tap-outside/Back deactivation, keyboard lift
+- [x] M4: input. Tap-to-activate, tap-outside/Back deactivation, keyboard lift
       through `TerminalTiles`, terminal/browser focus exclusivity.
-- [x] **M5 — navigation API.** `web(...)` actions, `onNavigate`/`onTitle`/
+- [x] M5: navigation API. `web(...)` actions, `onNavigate`/`onTitle`/
       `onProgress`, loop guard, dispatch across a widget's pages.
-- [ ] **M6 — docs and example.** README and ARCHITECTURE are updated; the example face
+- [ ] M6: docs and example. README and ARCHITECTURE are updated; the example face
       file, the manual matrix on a device and the release notes are still to do.
 
 ## Acceptance criteria
@@ -514,32 +519,35 @@ Manual test matrix (needs a device):
 
 ## Risks and open questions
 
-- **Security.** A WebView on the home screen can draw a convincing fake login page.
-  JS-off by default and HTTPS-only help, but store review must still treat a Browser
-  as untrusted. Consider a store warning: "this widget embeds a web browser".
-- **Gestures.** A WebView consumes horizontal drags. Tap-to-activate is mandatory;
-  without it, page swipes and the drawer break.
-- **Memory.** Two WebViews can be heavy on low-end phones. The max-two rule is a
-  guard; if it still hurts, lower it to one or destroy hidden browsers after a
-  timeout.
-- **Cookies/profile.** All widgets share the app's WebView profile, so a login in one
-  Browser widget is visible to another. This is normal WebView behavior; document it
-  before the store takes Browser widgets.
-- **Engine differences.** Some sites refuse embedded WebViews or behave differently
-  from Chrome. If that becomes a blocker, a GeckoView backend can be added behind the
-  same node/API.
-- **Previews.** A Browser file gets no `owl-check` picture in v1. If that hurts the
-  authoring loop, add the `onPageFinished` bitmap cache later.
-- **Naming.** `TerminalTiles` now handles browser focus too; rename it to something
-  like `HomeTyping` in a separate refactor, not in this PR.
+Security is the first one. A WebView on the home screen can draw a convincing fake login page.
+Script off by default and https only help, but store review still has to treat a Browser as
+untrusted, and a store warning ("this widget embeds a web browser") is worth considering.
+
+A WebView consumes horizontal drags, so tap to activate is mandatory. Without it, page swipes
+and the drawer break.
+
+Two WebViews can be heavy on low-end phones. The two-page rule is the guard; if it still hurts,
+lower it to one or destroy hidden pages after a timeout.
+
+All widgets share the app's WebView profile, so a login in one Browser is visible in another.
+That is normal WebView behaviour, and it is documented before the store takes Browser widgets.
+
+Some sites refuse embedded WebViews or behave differently from Chrome. If that becomes a
+blocker, a GeckoView backend can be added behind the same node and API.
+
+A Browser file gets no `owl-check` picture in v1. If that hurts the authoring loop, add the
+`onPageFinished` bitmap cache later.
+
+`TerminalTiles` now handles browser focus too. Renaming it to something like `HomeTyping` is a
+separate change, not part of this one.
 
 ## Alternatives considered
 
-- **GeckoView.** A real Firefox engine, better compatibility, process isolation. Too
-  large for the first version; keep as a backend option.
-- **Linux browser via `WindowManager.claim`.** Reuses the existing Wayland
-  `EmbeddedWindowView`, but slow and heavy under proot, no Android cookies, awkward
-  input.
-- **External browser only (`url(...)`).** No implementation cost, but it leaves the
-  face and is not an embedded browser tab. Keep as a fallback for links the WebView
-  refuses.
+GeckoView is a real Firefox engine with better compatibility and process isolation. It is too
+large for the first version, and stays an option behind the same node.
+
+A Linux browser over `WindowManager.claim` reuses the existing Wayland `EmbeddedWindowView`, but
+it is slow and heavy under proot, has no Android cookies, and its input is awkward.
+
+An external browser (`url(...)`) costs nothing to implement, but it leaves the face and is not
+an embedded tab. It stays the fallback for links the WebView refuses.

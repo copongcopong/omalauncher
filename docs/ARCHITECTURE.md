@@ -49,34 +49,32 @@ drawing.
 ## Browser tiles
 
 A widget's `Browser` node draws an Android System WebView inside the tile
-(`ui/BrowserView.kt`), not a client of the Wayland compositor. Nothing runs in
-the guest, so a file with a Browser needs no Linux, and its frames go into the
-tile the way any other view's do. What the page may reach is decided there and
-nowhere else: https only, no file or content access, script and DOM storage only
-when the node asks for `js`, and no JavaScript bridge. Every Browser in the app
-shares one WebView profile, so cookies and sign-ins are shared between tiles.
-Home's input owner, `TerminalTiles`, takes a Browser tile in as it takes a
-terminal: the page's view takes no touch until the tile is tapped
-(`TileWebView.dispatchTouchEvent` says so), so a swipe still turns the page and
-a long press still lifts the tile. The tap that gives it the tile, a tap
-outside it, a page turn and Back are the same code path a terminal's and a
-widget's text field are, and the page is what the home screen lifts above the
-keyboard. A field in the page keeps the WebView's own IME connection.
+(`ui/BrowserView.kt`). Nothing runs in the guest, so a file with a Browser needs no Linux, and
+its frames reach the tile the way any other view's do. The page's reach is decided in
+`configure()` and nowhere else: https only, no file or content access, script and DOM storage
+only when the node asks for `js`, and no JavaScript bridge. Every Browser in the app shares one
+WebView profile, so cookies and sign-ins are shared between tiles.
+
+Home's input owner, `TerminalTiles`, takes a Browser tile in as it takes a terminal. The page
+takes no touch until the tile is tapped (`TileWebView.dispatchTouchEvent` says so), and once it
+has the tile it holds the screen lock, so a swipe beside it turns no page. The tap that gives it
+the tile, a tap outside it, a page turn and Back are the same path a terminal's and a widget's
+text field use, and the page is what home lifts above the keyboard. A field in the page keeps
+the WebView's own IME connection.
 
 ## Screen lock
 
 A widget holds home still with `lock(true)` (owl 13), and a Browser page holds it by itself
-while it has the tile. The holds live in `ui/TerminalTiles.kt` as a set of owners, not a
-boolean: a widget instance, or the page handle, one entry each, so two widgets locking are
-both honoured and one letting go cannot free the screen the other holds. What reads it is
-home, in four places: the pager's `userScrollEnabled` and the swipe-up in `ui/Home.kt`, the
-long-press arm in `ui/HomeGrid.kt`, and `lockedTaps` on the prompt bar, the recent strip and
-the side rail in `ui/Launcher.kt`, which consumes only the press so they still draw and
-scroll while opening nothing. `ui/LockCue.kt` draws the border and the chip above the pages,
-so a widget cannot cover the way out. A page's hold follows the view's focus: a tap outside
-it, Back or the chip drops the focus first, because releasing the hold alone would let the
-focused page take it straight back. Nothing is persisted, so a restart comes up unlocked,
-and a stopped widget's holds go with it.
+while it has the tile. The holds live in `ui/TerminalTiles.kt` as a set of owners: a widget
+instance, or the page handle, one entry each, so two widgets locking are both honoured and one
+letting go cannot free the screen the other holds. Home reads it in four places. The pager's
+`userScrollEnabled` and the swipe-up condition are in `ui/Home.kt`; the long-press arm is in
+`ui/HomeGrid.kt`; and `lockedTaps` on the prompt bar, the recent strip and the side rail in
+`ui/Launcher.kt` consumes only the press, so they still draw and scroll while opening nothing.
+`ui/LockCue.kt` draws the border and the chip above the pages, so a widget cannot cover the way
+out. A page's hold follows the view's focus: a tap outside it, Back or the chip drops the focus
+first, because releasing the hold alone would let the focused page take it straight back.
+Nothing is persisted, so a restart comes up unlocked, and a stopped widget's holds go with it.
 
 ## GPU acceleration
 
