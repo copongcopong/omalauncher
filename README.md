@@ -44,6 +44,16 @@ Left to right: a terminal tile across the whole inner screen with three tabs; th
 bar over the soft keyboard while an agent edits `keys.toml`; and widgets laid out full width,
 here the date and weather, system info, Hacker News, a calendar and a battery heatmap.
 
+<p>
+  <img src="docs/fork/fav-sites-menu.jpg" width="32%" alt="A Browser tile showing Hacker News, with its site menu open: hacker news, old.reddit.com, github trending, Omalauncher Z">
+  <img src="docs/fork/fav-sites-page.jpg" width="32%" alt="The same tile on old.reddit.com, with the screen lock chip above it after the page was tapped">
+</p>
+
+The `44-fav-sites.owl` example in the action: back, forward and reload on the left, a menu of
+sites on the right, and the pick kept across restarts. The second shot is the same tile on
+old.reddit.com with the screen lock chip up, because the page has the tile and a drag belongs
+to it.
+
 ▶ **[The demo, on YouTube](https://youtube.com/shorts/D3fvVJxXpGE)**, a short screen
 recording of the fork running on the Fold.
 
