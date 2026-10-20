@@ -37,6 +37,8 @@ internal val KINDS: Map<String, Kind> =
         "Spacer" to Kind(emptySet(), Children.NONE),
         // owl 2: a live terminal (foot) inside the tile.
         "Terminal" to Kind(setOf("command", "fontSize"), Children.NONE),
+        // owl 11: a live page from the web, another surface in the tile beside it.
+        "Browser" to Kind(setOf("url", "js", "zoom"), Children.NONE),
         // owl 4: input.
         "Slider" to Kind(setOf("value", "min", "max", "step", "color", "track", "live"), Children.NONE),
         "Input" to Kind(setOf("text", "placeholder", "color", "fontSize", "clear", "focus", "underline"), Children.NONE),
@@ -113,7 +115,9 @@ internal val SINCE =
         // owl 10: the coding agents in Linux and the recent strip's apps, for a face with its own prompt bar.
         listOf("android.agents", "android.recent", "open", "ask", "Popup", "Input.underline").associateWith { 10 } +
         // owl 10: fonts of the widget's own, and Canvas text styled like a Text.
-        listOf(FONT_FILE, CANVAS_TEXT_STYLE).associateWith { 10 }
+        listOf(FONT_FILE, CANVAS_TEXT_STYLE).associateWith { 10 } +
+        // owl 11: a web page in the tile, and the taps that steer it.
+        listOf("Browser", "web").associateWith { 11 }
 
 internal const val FACE_FILE = "face \"…\" { }"
 
@@ -151,10 +155,23 @@ internal val HANDLER_PARAMS =
         "onChange" to listOf("value"),
         "onSubmit" to listOf("value"),
         "onDismiss" to emptyList(),
+        // owl 11: the page a Browser went to, its title, and how far it has loaded.
+        "onNavigate" to listOf("value"),
+        "onTitle" to listOf("value"),
+        "onProgress" to listOf("value"),
     )
 
 /** Handlers only some nodes have. */
-internal val HANDLER_KINDS = mapOf("onChange" to setOf("Slider", "Input"), "onSubmit" to setOf("Input"), "onDismiss" to setOf("Popup"))
+internal val HANDLER_KINDS =
+    mapOf(
+        "onChange" to setOf("Slider", "Input"),
+        "onSubmit" to setOf("Input"),
+        "onDismiss" to setOf("Popup"),
+        // owl 11: only a Browser has a page to report on.
+        "onNavigate" to setOf("Browser"),
+        "onTitle" to setOf("Browser"),
+        "onProgress" to setOf("Browser"),
+    )
 
 /** What triggers bind in their statements. */
 internal val TRIGGER_PARAMS = mapOf("on" to listOf("value", "old"))
@@ -177,6 +194,8 @@ internal val ACTION_WORDS =
         // true and false also turn it on and off.
         "torch" to setOf("on", "off", "toggle").let { Words(it, "torch takes true, false, ${it.joinToString()}") },
         "notification" to setOf("open", "dismiss").let { Words(it, "notification takes ${it.joinToString()} and a notification's key") },
+        // owl 11: where a Browser goes, or how it loads where it is.
+        "web" to setOf("back", "forward", "reload", "stop").let { Words(it, "web takes ${it.joinToString()}") },
     )
 
 /** The tile's size, readable anywhere a declaration of the same name doesn't shadow it. */

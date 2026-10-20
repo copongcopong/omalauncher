@@ -58,6 +58,7 @@ import dev.omalauncher.widgets.lang.WidgetError
 import dev.omalauncher.widgets.lang.bool
 import dev.omalauncher.androidAppKey
 import dev.omalauncher.ui.AppHit
+import dev.omalauncher.ui.EmbeddedBrowser
 import dev.omalauncher.ui.LauncherStyle
 import dev.omalauncher.ui.SettingsPage
 import dev.omalauncher.ui.allApps
@@ -230,6 +231,13 @@ class WidgetServices(
         command: String?,
         fontSize: Double?,
     ) = runtime.terminals.create(command, fontSize)
+
+    /** A page for a Browser node: the tile draws it, so nothing runs until it shows. */
+    override fun browser(
+        url: String?,
+        js: Boolean,
+        zoom: Double,
+    ) = EmbeddedBrowser(runtime.terminals, url, js, zoom)
 
     override fun fileUpdates(path: String) = watchFile(guestFile(path))
 

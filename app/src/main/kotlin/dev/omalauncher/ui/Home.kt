@@ -151,8 +151,8 @@ fun HomeScreen(
         state.currentPage = engine.activePage.takeIf { it >= 1 && !full(it) } ?: 1
     }
     val shown = slots.getOrElse(pager.currentPage) { listOf(1) }
-    // A face showing has the keyboard, for one of its fields or terminals: it isn't lifted, it makes room itself.
-    val faceTyping = shown.mapNotNull(::faceOn).any { f -> engine.instance(f.spec)?.let { it.owns(runtime.terminals.active) || runtime.terminals.field?.widget === it } == true }
+    // A face showing has the keyboard, for one of its fields, terminals or pages: it isn't lifted, it makes room itself.
+    val faceTyping = shown.mapNotNull(::faceOn).any { f -> engine.instance(f.spec)?.let { it.owns(runtime.terminals.active) || it.owns(runtime.terminals.browser) || runtime.terminals.field?.widget === it } == true }
     val faceShowing = shown.all(::full)
     val statusBarAway = shown.all { faceOn(it)?.let { f -> engine.instance(f.spec) }?.showsStatusBar() == false }
     // Which pager slots are full screen, for the bar to slide with the others.
@@ -355,9 +355,9 @@ fun HomeScreen(
             render = { item, tile, highlighted ->
                 when (item) {
                     is WidgetItem -> {
-                        // Whose terminal has the keyboard: the tile gives up what the keyboard covers once the lift is spent.
+                        // Whose terminal or page has the keyboard: the tile gives up what the keyboard covers once the lift is spent.
                         val instance = engine.instance(item.spec)
-                        val typing = instance != null && (instance.owns(terminals.active) || terminals.field?.widget === instance)
+                        val typing = instance != null && (instance.owns(terminals.active) || instance.owns(terminals.browser) || terminals.field?.widget === instance)
                         WidgetTile(
                             spec = item.spec,
                             instance = engine.instance(item.spec),
