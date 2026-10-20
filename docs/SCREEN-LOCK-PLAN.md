@@ -85,9 +85,11 @@ node that asked for it is one of its nodes, so a node's disposal cannot say whet
 widget is still working. The chip covers the gap. Both are worth doing when home grows a
 real notion of which tile is active.
 
-**Not** released by opening an app or Settings from the widget's own action: coming back finds
-the screen as it was left. Android's own gestures (notification shade, recents, home) are
-never intercepted; a user can always leave.
+Opening another app does release it, because a widget that isn't on screen is stopped, and a
+stopped widget's hold goes with it: coming back after a detour finds the screen as it was left,
+unlocked. That is the stop rule doing the work, not a separate one, and it is what the device
+showed. Android's own gestures (notification shade, recents, home) are never intercepted; a user
+can always leave.
 
 Back: the locked widget gets it first, as it does now (a page's history, a terminal's
 control). If nothing consumes it, Back releases the lock and undoes nothing else, so a
