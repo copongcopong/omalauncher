@@ -37,6 +37,9 @@ object LauncherData {
     /** keys.toml, the extra-keys bar; see [dev.omalauncher.ui.ExtraKeysStore]. The guest sees ~/.config/omalauncher/keys. */
     fun keysDir(context: Context) = File(context.filesDir, "keys")
 
+    /** layout.toml, where home's tiles and pages are; see [dev.omalauncher.widgets.HomeStore]. The guest sees ~/.config/omalauncher/home. */
+    fun homeDir(context: Context) = File(context.filesDir, "home")
+
     /** Settings that belong to no one store: setup, gestures, the GPU, the home role. Keys carry their owner's prefix. */
     fun prefs(context: Context): SharedPreferences = context.getSharedPreferences("launcher", Context.MODE_PRIVATE)
 

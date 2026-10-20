@@ -18,7 +18,7 @@ nothing. The lock is the explicit version of what a focused page already does by
 - **An action, not a property.** `lock(true)` and `lock(false)`, called from a handler. A
   property on a node would tie the lock to one tile; an action lets a face decide when its
   own UI is in a mode that wants the screen held.
-- **owl 12.** A file that asks for the lock must declare `meta { owl: 12 }`, so launchers
+- **owl 13.** A file that asks for the lock must declare `meta { owl: 13 }`, so launchers
   older than this reject it instead of silently ignoring the call and turning pages anyway.
 - **Home-wide, not tile-local.** Locking holds the pager, the swipe-up and long-press for
   the whole screen, because they are one gesture surface. A tile cannot lock only itself.
@@ -34,7 +34,7 @@ nothing. The lock is the explicit version of what a focused page already does by
 
 ```owl
 widget "notes" {
-  meta { owl: 12 }
+  meta { owl: 13 }
   state editing = false
   Column {
     Button { text: editing ? "done" : "draw"; onTap: { editing = !editing; lock(editing) } }
@@ -179,7 +179,7 @@ stopped or its file removed. In a preview, the callback stays absent and `lock(.
 
 ## Tests
 
-- `LangTest`: `lock(true)` without `meta { owl: 12 }` fails with the owl-12 message; with it,
+- `LangTest`: `lock(true)` without `meta { owl: 13 }` fails with the owl-12 message; with it,
   compiles; `lock()` with no argument fails like other arity errors; the call is listed as an
   action for the reviewer.
 - `WidgetInstanceBrowserTest` or a new `WidgetInstanceLockTest`: `lock(true)` calls `onLock`
