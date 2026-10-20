@@ -108,9 +108,17 @@ fun HomeScreen(
     var menuFor by remember { mutableStateOf<HomeItem?>(null) }
 
     val terminals = runtime.terminals
+    // A page that has the tile holds the screen still, so its drags stay its own; editing lets go so a page can be moved.
+    LaunchedEffect(terminals.browser, state.editing, arrange.folder) {
+        terminals.syncFocusLock(state.editing != null || arrange.folder != null)
+    }
     // Composed last, a BackHandler takes Back first; this one goes before the others to take it only when nothing else on
     // home wants it, so a tile typing (a terminal's control, a page's history) gets it as it does now.
-    BackHandler(enabled = terminals.locked) { terminals.unlockAll() }
+    BackHandler(enabled = terminals.locked) {
+        // The page lets go first: unlocking while it still has the tile would only lock it again.
+        terminals.deactivate()
+        terminals.unlockAll()
+    }
     BackHandler(enabled = terminals.typing) { terminals.deactivate() }
     BackHandler(enabled = state.homeMenuOpen) { state.homeMenuOpen = false }
     BackHandler(enabled = state.editing != null && !state.homeMenuOpen) { state.editing = null }
@@ -447,7 +455,15 @@ fun HomeScreen(
 
     // A widget holds the home screen still: the border, and the way out of it, over the pages and above them here, so
     // a widget that covers the tile area can't cover the way out.
-    if (terminals.locked) LockCue(face = faceShowing, onUnlock = { terminals.unlockAll() })
+    if (terminals.locked) {
+        LockCue(
+            face = faceShowing,
+            onUnlock = {
+                terminals.deactivate()
+                terminals.unlockAll()
+            },
+        )
+    }
 
     if (extraKeys) {
         ExtraKeys(

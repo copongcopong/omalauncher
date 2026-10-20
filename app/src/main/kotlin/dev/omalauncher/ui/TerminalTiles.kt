@@ -108,8 +108,32 @@ class TerminalTiles(
         on: Boolean,
     ) = holds.lock(owner, on)
 
+    /** The focused page's hold, if it has one; see [syncFocusLock]. */
+    private var focusLock: Any? = null
+
+    /**
+     * A page has the tile and home isn't being edited: it holds the screen still, so a swipe that starts beside the
+     * page turns nothing and a long press lifts nothing. Editing lets go, since a locked screen can't be rearranged.
+     */
+    fun syncFocusLock(editing: Boolean) {
+        val page = browser?.takeIf { !editing }
+        if (focusLock === page) return
+        focusLock?.let { holds.lock(it, false) }
+        focusLock = page
+        page?.let { holds.lock(it, true) }
+    }
+
+    /** The page let go, so its hold does too. */
+    fun releaseFocusLock() {
+        focusLock?.let { holds.lock(it, false) }
+        focusLock = null
+    }
+
     /** Nothing holds the home screen still any more: the way out on the cue, for a widget that can't be reached. */
-    fun unlockAll() = holds.unlockAll()
+    fun unlockAll() {
+        releaseFocusLock()
+        holds.unlockAll()
+    }
 
     init {
         wm.claim = { window -> sessions.firstOrNull { it.appId == window.appId }?.attach(window) != null }
@@ -153,6 +177,7 @@ class TerminalTiles(
         field = null
         browser?.clearFocus()
         browser = null
+        releaseFocusLock()
     }
 
     /** [f] took focus, and with it the keyboard. */
@@ -183,7 +208,10 @@ class TerminalTiles(
 
     /** [b] let go: its page closed, or the tile went away with it. */
     fun unfocused(b: EmbeddedBrowser) {
-        if (browser === b) browser = null
+        if (browser === b) {
+            browser = null
+            releaseFocusLock()
+        }
     }
 
     /** A press at window point [p]: outside the typing tile, it gives the home screen its touches back. */
