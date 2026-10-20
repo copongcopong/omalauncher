@@ -97,7 +97,7 @@ message rather than a blank picture.
 Files: `ui/BrowserView.kt`, the `Render.kt` arm, `WidgetInstance.browser`, the store's
 `Catalog`, and owl's `Schema`, `Compiler`, `Builtins`.
 
-Examples: `assets/widgets/examples/45-browser.owl` and `46-browser-tabs.owl`.
+Examples: `assets/widgets/examples/45-browser.owl`, `45-fav-sites.owl` and `46-browser-tabs.owl`.
 
 Plan and decisions: `docs/BROWSER-NODE-PLAN.md`.
 
@@ -128,7 +128,7 @@ Plan and decisions: `docs/SCREEN-LOCK-PLAN.md`.
 
 ### Examples and docs
 
-The fork adds `45-browser.owl`, `46-browser-tabs.owl` and `47-lock.owl` to
+The fork adds `45-browser.owl`, `45-fav-sites.owl`, `46-browser-tabs.owl` and `47-lock.owl` to
 `assets/widgets/examples`, and two plan documents under `docs/`. `docs/ARCHITECTURE.md` has a
 section each for Browser tiles and the screen lock.
 
