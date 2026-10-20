@@ -2,7 +2,7 @@
 
 > **Omalauncher Z.** [copongcopong/omalauncher](https://github.com/copongcopong/omalauncher) is a fork of
 > [SimonSchubert/omalauncher](https://github.com/SimonSchubert/omalauncher) developed on `main`.
-> Four changes so far, aimed at a foldable's inner screen and a terminal over its wallpaper:
+> What it adds to upstream:
 >
 > - The home grid is 12 columns spanning the whole screen instead of two 6-column pages side by
 >   side, so a widget tile can be full width. Since the 0.9.0 sync that is upstream's own
@@ -16,9 +16,18 @@
 >   change; a standalone Linux window keeps its background.
 > - The extra-keys bar is a config file, `keys.toml`: its rows and keys are edited in the
 >   terminal (`~/.config/omalauncher/keys/keys.toml`) and redraw on save, no rebuild. The
->   preset is the fork's own keys — `^b`, `^a` and `^p` on the second row — at
+>   preset is the fork's own keys, `^b`, `^a` and `^p` on the second row, at
 >   `height = 36` and `text = 12`, and the file's own header says how to update it and
 >   links the format's docs: [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md).
+> - A `Browser` node (owl 11): a web page in a tile, drawn by Android's own WebView, so it needs
+>   no Linux. https only, script off unless `js: true`, two pages per widget, and a page that
+>   keeps its place across tab switches.
+> - A screen lock (owl 13): a widget holds home still while it is being used, so a drag stays
+>   its own. A border and a chip say so, and the chip's button always lets go.
+>
+> That list, with each addition's owl level, the files it touches and what an upstream pull
+> request would still need, is [docs/FORK.md](docs/FORK.md). It is the running record of the
+> fork, so start there rather than in the changelog.
 >
 > It builds as `dev.omalauncher.fold`, so it installs beside the Play app. Upstream's release
 > notes are the [CHANGELOG](CHANGELOG.md), with this fork's own release at its top.
