@@ -875,9 +875,10 @@ widget "lobsters" {
 
 - The page loads over https, from a host written out in the file: `"https://example.com/post/${enc(id)}"`.
   `http://`, `file:`, `content:`, `javascript:` and `data:` don't compile, a value can't be the host, and
-  values go through `enc()` as a `http(...)` URL's do. A link in the page that goes to one of those loads
-  nothing; `tel:` and `mailto:` open the app for them, as `url(...)` does. The store lists the page as
-  `browser GET https://…`, the way it lists an image.
+  values go through `enc()` as a `http(...)` URL's do. The whole URL cannot come from a state either: write
+  out where it starts and put the part that changes through `enc()`. A link in the page that goes to one of
+  those loads nothing; `tel:` and `mailto:` open the app for them, as `url(...)` does. The store lists the
+  page as `browser GET https://…`, the way it lists an image.
 - Script is off unless the node says `js: true`, and DOM storage comes with it. A page gets no JavaScript
   bridge, can't reach this phone's files or a `content://` provider, opens no second window, and plays no
   sound before a tap. An https page can't pull in `http://` either.
@@ -921,6 +922,9 @@ face "work" {
   }
 }
 ```
+
+`examples/45-browser.owl` and `examples/46-browser-tabs.owl` are those two, ready to move up into
+`widgets/` and use.
 
 ## From scripts
 
