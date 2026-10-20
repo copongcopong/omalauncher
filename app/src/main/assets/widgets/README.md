@@ -1037,9 +1037,10 @@ face "work" {
 }
 ```
 
-`examples/45-browser.owl`, `examples/45-fav-sites.owl` and `examples/46-browser-tabs.owl` are
-those, ready to move up into `widgets/` and use. `45-fav-sites.owl` keeps a menu of sites — Hacker
-News, old.reddit.com, GitHub trending and this fork's repo — in the tile and shows the one picked.
+`examples/45-browser.owl` and `examples/46-browser-tabs.owl` are those two, ready to move up into
+`widgets/` and use. `examples/44-fav-sites.owl` is a third: a page with a menu of sites in its
+toolbar (Hacker News, old.reddit.com, GitHub trending, this fork's repo) which remembers the one
+picked across restarts.
 
 ## Screen lock
 

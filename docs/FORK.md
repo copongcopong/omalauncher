@@ -9,6 +9,9 @@ It has a second use. When one of these additions is worth sending upstream, this
 starting point: each entry says which level it uses, which files it touches, and what an
 upstream PR would still need.
 
+Demos of the fork on the Fold: [one](https://youtube.com/shorts/D3fvVJxXpGE),
+[another](https://youtube.com/shorts/rUvdpGPZgIY).
+
 Keep this file current. When a fork change lands, add or edit its entry here in the same
 change. When a sync lands, re-read it against the new upstream and fix whatever moved.
 
@@ -97,7 +100,7 @@ message rather than a blank picture.
 Files: `ui/BrowserView.kt`, the `Render.kt` arm, `WidgetInstance.browser`, the store's
 `Catalog`, and owl's `Schema`, `Compiler`, `Builtins`.
 
-Examples: `assets/widgets/examples/45-browser.owl`, `45-fav-sites.owl` and `46-browser-tabs.owl`.
+Examples: `assets/widgets/examples/45-browser.owl`, `44-fav-sites.owl` and `46-browser-tabs.owl`.
 
 Plan and decisions: `docs/BROWSER-NODE-PLAN.md`.
 
@@ -128,7 +131,7 @@ Plan and decisions: `docs/SCREEN-LOCK-PLAN.md`.
 
 ### Examples and docs
 
-The fork adds `45-browser.owl`, `45-fav-sites.owl`, `46-browser-tabs.owl` and `47-lock.owl` to
+The fork adds `44-fav-sites.owl`, `45-browser.owl`, `46-browser-tabs.owl` and `47-lock.owl` to
 `assets/widgets/examples`, and two plan documents under `docs/`. `docs/ARCHITECTURE.md` has a
 section each for Browser tiles and the screen lock.
 

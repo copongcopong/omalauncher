@@ -1,10 +1,10 @@
 widget "favoriteSites" {
   page: 1
-  order: 8
+  order: 9
   size: 12x8
   minSize: 6x4
 
-  meta { owl: 11; description: "Hacker News, old.reddit and GitHub trending in a tile, drawn by Android's own WebView, so it needs no Linux: back, forward and reload, and a menu to pick the site"; version: "1.7"; license: "MIT"; category: "news" }
+  meta { owl: 11; description: "Hacker News, old.reddit and GitHub trending in a tile, drawn by Android's own WebView, so it needs no Linux: back, forward and reload, and a menu to pick the site"; version: "1.0"; license: "MIT"; category: "news" }
 
   // The page reports what it's called and how much has loaded.
   state title = ""

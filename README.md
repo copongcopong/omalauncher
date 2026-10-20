@@ -44,8 +44,10 @@ Left to right: a terminal tile across the whole inner screen with three tabs; th
 bar over the soft keyboard while an agent edits `keys.toml`; and widgets laid out full width,
 here the date and weather, system info, Hacker News, a calendar and a battery heatmap.
 
-▶ **[The demo, on YouTube](https://youtube.com/shorts/D3fvVJxXpGE)** — a short screen
+▶ **[The demo, on YouTube](https://youtube.com/shorts/D3fvVJxXpGE)**, a short screen
 recording of the fork running on the Fold.
+
+▶ **[Another demo](https://youtube.com/shorts/rUvdpGPZgIY)**, a second short recording.
 
 Two things in those screenshots aren't Omalauncher's:
 
