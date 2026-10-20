@@ -1,7 +1,7 @@
 # Browser node — implementation plan
 
-Status: implemented on `feat/browser-node` (M1–M5, at 6539a59); M6 is partly done, and the
-device checks below are still open.
+Status: implemented and merged in #6 (M1–M5); M6 is partly done, and the device checks below
+are still open.
 Target: `copongcopong/omalauncher`, a new owl level (11).
 Goal: make `Browser` a first-class OWL node, the sibling of `Terminal`, so a face can
 hold a terminal and an embedded web view in tabs on one page.

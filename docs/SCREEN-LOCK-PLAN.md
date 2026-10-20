@@ -1,7 +1,7 @@
 # Screen lock — implementation plan
 
-Status: proposed, nothing implemented yet.
-Target: `copongcopong/omalauncher`, a new owl level (12).
+Status: implemented, merged in #8; the lock is owl 13 since the 0.10.0 sync took 11 and 12.
+Target: `copongcopong/omalauncher`, a new owl level (13).
 Goal: let a widget hold the home screen still while it is being used, so a tap or a swipe on
 it doesn't turn the page or open the drawer. A desktop window keeps its drags; a tile should
 keep its swipes.
