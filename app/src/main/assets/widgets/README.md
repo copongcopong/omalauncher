@@ -1060,6 +1060,9 @@ widget "sketch" {
 }
 ```
 
+- A page that has the tile holds the lock by itself; tapping the prompt bar or another tile is a
+  tap outside it, so it lets go and the lock with it. A `lock(true)` a widget asked for is not tied
+  to focus, so it keeps holding while the bar and the strip ignore taps.
 - `lock(true)` stops what home answers with a swipe or a long press: the page turning, the swipe up
 to the drawer, a tile lifting, and taps on the prompt bar and the recent strip. The widget's own
 taps keep working, so it is no shield; the notification shade and Home stay Android's, as before.
