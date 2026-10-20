@@ -73,10 +73,17 @@ Released by any of:
 |---|---|
 | `lock(false)` from the widget that asked | the normal path |
 | the widget stopping, being deleted or renamed | its process is gone; a hold with no owner is a bug |
-| the node that asked leaving composition (a tab switched away, a face left) | nothing on screen is holding the screen still |
-| the locked widget losing focus (a tap outside it, another tile tapped) | the working surface is gone |
 | a launcher restart, a reboot, a crash | never persisted |
 | the unlock button on the chip | the escape hatch |
+
+Not in this version, and why: the plan first promised that a lock ends when its node leaves
+composition, and when the locked tile loses focus (a tap outside it, another tile tapped).
+Neither has a signal to hang on. Focus on home exists only for a terminal, a widget's text
+field and a Browser page, so a plain widget that locks — the case this feature is for —
+never loses focus in a way the launcher can see; and the lock is held by a widget while the
+node that asked for it is one of its nodes, so a node's disposal cannot say whether the
+widget is still working. The chip covers the gap. Both are worth doing when home grows a
+real notion of which tile is active.
 
 **Not** released by opening an app or Settings from the widget's own action: coming back finds
 the screen as it was left. Android's own gestures (notification shade, recents, home) are

@@ -117,7 +117,9 @@ internal val SINCE =
         // owl 10: fonts of the widget's own, and Canvas text styled like a Text.
         listOf(FONT_FILE, CANVAS_TEXT_STYLE).associateWith { 10 } +
         // owl 11: a web page in the tile, and the taps that steer it.
-        listOf("Browser", "web").associateWith { 11 }
+        listOf("Browser", "web").associateWith { 11 } +
+        // owl 12: holding the home screen still while the widget is being used.
+        mapOf("lock" to 12)
 
 internal const val FACE_FILE = "face \"…\" { }"
 

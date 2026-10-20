@@ -86,7 +86,7 @@ that read it redraw. Properties are separated by newlines or `;`.
 | `asset logo = base64"iVBOR..."` | an embedded image (under 2 MB) for `Image { src: logo }`, or a font for `font: logo` (owl 10, see Fonts), so the widget is one self-contained file |
 | `requires { pacman: ["jq", "curl"] }` | packages the widget's commands need; see Dependencies |
 | `meta { description: "..."; version: "1.0"; license: "MIT"; category: "news" }` | needed to publish to the widget store (see Sharing) |
-| `meta { owl: 11 }` | the language version the widget needs (this launcher has 11; the default is 1). Older launchers say "update the launcher" instead of failing on what they don't know. `Terminal` needs 2, `sprite` 3, triggers, `file`, `Slider`, `Input`, `android.notifications`, `android.volume`, `volume` and `notification` need 4, and `screen { }`, `screen()`, `close()`, `screenWidth` and `screenHeight` need 5, `Input`'s `focus`, `sh()` and `corners` 6, and `android.alarm`, `android.modes`, `torch`, `share` and `haptic` 7, and `app "…" { }` files, `android.apps`, `enc`, `post`, images from the web, `sound` and `screenInset` 8, and `parseTime`, `fmtAgo`, `fmtNum`, `random`, `shuffle`, `hash`, `fmtTime`'s zone and language, `set`, `remove`, `merge`, `reduce`, `scan`, `groupBy`, `toJson`, `capitalize`, `asin`, `acos`, `flatten`'s depth, `on … first`, and `if` and `let` in handlers 9, and `face "…" { }` files, `onLongPress`, Text's `spans`, `fontWeight` and `letterSpacing`, gradient backgrounds, `frost`, fonts of a widget's own and Canvas `text`'s `font`, `fontWeight`, `italic` and `letterSpacing`, `android.agents`, `android.recent`, `open`, `ask`, `Popup` and Input's `underline` 10, and `Browser` and `web` 11; using them without declaring it is an error |
+| `meta { owl: 12 }` | the language version the widget needs (this launcher has 12; the default is 1). Older launchers say "update the launcher" instead of failing on what they don't know. `Terminal` needs 2, `sprite` 3, triggers, `file`, `Slider`, `Input`, `android.notifications`, `android.volume`, `volume` and `notification` need 4, and `screen { }`, `screen()`, `close()`, `screenWidth` and `screenHeight` need 5, `Input`'s `focus`, `sh()` and `corners` 6, and `android.alarm`, `android.modes`, `torch`, `share` and `haptic` 7, and `app "…" { }` files, `android.apps`, `enc`, `post`, images from the web, `sound` and `screenInset` 8, and `parseTime`, `fmtAgo`, `fmtNum`, `random`, `shuffle`, `hash`, `fmtTime`'s zone and language, `set`, `remove`, `merge`, `reduce`, `scan`, `groupBy`, `toJson`, `capitalize`, `asin`, `acos`, `flatten`'s depth, `on … first`, and `if` and `let` in handlers 9, and `face "…" { }` files, `onLongPress`, Text's `spans`, `fontWeight` and `letterSpacing`, gradient backgrounds, `frost`, fonts of a widget's own and Canvas `text`'s `font`, `fontWeight`, `italic` and `letterSpacing`, `android.agents`, `android.recent`, `open`, `ask`, `Popup` and Input's `underline` 10, `Browser` and `web` 11, and `lock` 12; using them without declaring it is an error |
 | `onTap: ...` | runs when the tile (not a button inside it) is tapped |
 | `screen { ... }` | a full-screen view of the widget, opened with `screen()`; see Screens (owl 5) |
 | `every 10s { ... }`, `at t { ... }`, `when c { ... }`, `on x { ... }` | statements that run without a tap; see Triggers |
@@ -480,6 +480,7 @@ after it in its block (and blocks inside them), and needs a name not used for a 
 | `media("toggle")` | controls what's playing: `toggle`, `play`, `pause`, `next`, `previous`, or `open` (brings up the player app) |
 | `volume(50)` | sets the media volume in percent; or `volume("up")`, `"down"`, `"mute"`, `"unmute"`, `"toggle"` (owl 4) |
 | `notification("open", key)` | opens a notification from `android.notifications` as tapping it in the shade would; `"dismiss"` clears it. Without notification access, opens the setting that grants it (owl 4) |
+| `lock(true)` | holds the home screen still until `lock(false)` or the launcher's chip: no page turn, swipe up or long press (owl 12, see Screen lock) |
 
 ## Images from the web
 
@@ -925,6 +926,48 @@ face "work" {
 
 `examples/45-browser.owl` and `examples/46-browser-tabs.owl` are those two, ready to move up into
 `widgets/` and use.
+
+## Screen lock
+
+A widget that wants a drag has to fight the pager for it: one page turn is a sideways drag
+anywhere on home. `lock(true)` holds home still until it is released (owl 12):
+
+```owl
+widget "sketch" {
+  meta { owl: 12 }
+  state editing = false
+  Column {
+    Row {
+      gap: 8
+      Text { text: editing ? "locked" : "pad"; weight: 1 }
+      Button { text: editing ? "done" : "draw"; onTap: { editing = !editing; lock(editing) } }
+    }
+    Canvas { weight: 1 }   // a drag in here now belongs to the widget, not the pager
+  }
+}
+```
+
+- `lock(true)` stops what home answers with a swipe or a long press: the page turning, the swipe up
+to the drawer, a tile lifting, and taps on the prompt bar and the recent strip. The widget's own
+taps keep working, so it is no shield; the notification shade and Home stay Android's, as before.
+- It is home-wide, not tile-sized: home's gestures are one surface, so a locked screen is still for
+every tile on it. Two widgets that lock are both honoured, and one letting go leaves the other's
+hold.
+- While it is held, the launcher draws a border around the screen and a chip at top centre, and
+the chip's button releases the lock. The launcher draws both over everything, so no widget can
+cover the way out.
+- It ends with `lock(false)`, when the widget stops or its file is removed, through the chip, and
+with Back when nothing else on the tile wants it (a page's history, a terminal's control, an open
+menu). A restart, a reboot or a crash comes up unlocked: the lock is never kept. A tap outside the
+tile does not end it by itself, so while the widget is on screen the chip is the way out.
+- Nothing tells a widget whether it still holds the lock, so let the mode say what it is. The chip
+frees the screen without changing the widget's own state.
+- Don't lock on page load. A lock belongs to a mode the user turned on and can see, as `editing`
+is above: the chip is the fallback, not the way out. In owl-check's preview there is no home screen
+to hold, so `lock(...)` reports instead of locking.
+
+`examples/47-lock.owl` is a pad that locks while it is drawn on, ready to move up into `widgets/`
+and use.
 
 ## From scripts
 

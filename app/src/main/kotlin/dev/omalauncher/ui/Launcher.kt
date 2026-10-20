@@ -185,10 +185,12 @@ private fun DesktopScreen(
     }
     // The bar and the panel above it; the keyboard lifts both. Nothing here takes touches while the panel is closed,
     // except the bar. A phone's landscape folds them into a rail beside the grid, and unfolds them over it, centered.
+    // A widget holding the screen still leaves the bar and the strip drawn and unopenable: they aren't the surface in use.
+    val locked = runtime.terminals.locked
     val side = homeSide()
     if (side != null && !panelShown) {
         if (!runtime.terminals.typing) {
-            SideRail(runtime, state, handlers, side, Modifier.fillMaxSize().graphicsLayer { translationX = state.barShift() * size.width }.safePadding())
+            SideRail(runtime, state, handlers, side, Modifier.fillMaxSize().graphicsLayer { translationX = state.barShift() * size.width }.safePadding().lockedTaps(locked))
         }
     } else {
         Column(
@@ -223,9 +225,9 @@ private fun DesktopScreen(
                 Column(Modifier.graphicsLayer { if (!panelShown) translationX = state.barShift() * size.width }) {
                     // Home only: the open app list has everything.
                     // Swiping up from either does what it does on home, as from the dock on stock launchers.
-                    if (LauncherStyle.recentApps && !panelShown) RecentStrip(runtime, handlers, Modifier.homeSwipe(runtime, state))
+                    if (LauncherStyle.recentApps && !panelShown) RecentStrip(runtime, handlers, Modifier.homeSwipe(runtime, state, enabled = !locked).lockedTaps(locked))
                     // Insets itself by the grid gap, so it lines up with the tiles and the gap still takes taps.
-                    PromptBar(runtime, state, search = search, highlighted = highlighted, onLaunch = handlers.launch, modifier = Modifier.homeSwipe(runtime, state))
+                    PromptBar(runtime, state, search = search, highlighted = highlighted, onLaunch = handlers.launch, modifier = Modifier.homeSwipe(runtime, state, enabled = !locked).lockedTaps(locked))
                 }
             }
         }
