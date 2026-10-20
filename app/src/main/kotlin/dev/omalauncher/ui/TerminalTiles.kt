@@ -21,6 +21,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,7 +54,9 @@ import dev.omalauncher.wayland.XdgToplevel
  * keyboard and lets go on the same tap outside, Back or page turn. A Browser
  * tile's page too: a WebView would take every touch meant for the page swipe
  * or a long press, so its tile is inert until tapped and, once tapped, the
- * page is the one lifted and the one that lets go. Main thread only.
+ * page is the one lifted and the one that lets go. The lock lives here too,
+ * beside focus and the lift: a widget that asked for it holds the whole home
+ * screen still until it lets go (see [lock]). Main thread only.
  */
 class TerminalTiles(
     private val runtime: Runtime,
@@ -92,6 +95,45 @@ class TerminalTiles(
 
     /** A tile has the keyboard: its terminal ([active]), one of its widget's text fields ([field]) or its page ([browser]). */
     val typing get() = active != null || field != null || browser != null
+
+    /** The widgets holding the home screen still; see [HomeLock]. */
+    private val holds = HomeLock()
+
+    /** A widget holds the home screen still: the pages, the swipe up and the long press wait until it lets go. */
+    val locked get() = holds.locked
+
+    /** [owner] holds the home screen still ([on]) or gives it back; another widget's hold stays. */
+    fun lock(
+        owner: Any,
+        on: Boolean,
+    ) = holds.lock(owner, on)
+
+    /** The focused page's hold, if it has one; see [syncFocusLock]. */
+    private var focusLock: Any? = null
+
+    /**
+     * A page has the tile and home isn't being edited: it holds the screen still, so a swipe that starts beside the
+     * page turns nothing and a long press lifts nothing. Editing lets go, since a locked screen can't be rearranged.
+     */
+    fun syncFocusLock(editing: Boolean) {
+        val page = browser?.takeIf { !editing }
+        if (focusLock === page) return
+        focusLock?.let { holds.lock(it, false) }
+        focusLock = page
+        page?.let { holds.lock(it, true) }
+    }
+
+    /** The page let go, so its hold does too. */
+    fun releaseFocusLock() {
+        focusLock?.let { holds.lock(it, false) }
+        focusLock = null
+    }
+
+    /** Nothing holds the home screen still any more: the way out on the cue, for a widget that can't be reached. */
+    fun unlockAll() {
+        releaseFocusLock()
+        holds.unlockAll()
+    }
 
     init {
         wm.claim = { window -> sessions.firstOrNull { it.appId == window.appId }?.attach(window) != null }
@@ -135,6 +177,7 @@ class TerminalTiles(
         field = null
         browser?.clearFocus()
         browser = null
+        releaseFocusLock()
     }
 
     /** [f] took focus, and with it the keyboard. */
@@ -165,7 +208,10 @@ class TerminalTiles(
 
     /** [b] let go: its page closed, or the tile went away with it. */
     fun unfocused(b: EmbeddedBrowser) {
-        if (browser === b) browser = null
+        if (browser === b) {
+            browser = null
+            releaseFocusLock()
+        }
     }
 
     /** A press at window point [p]: outside the typing tile, it gives the home screen its touches back. */
@@ -250,6 +296,28 @@ class TerminalTiles(
             return minOf(overlap(imeHeight), room) to (overlap(imeTarget) - room).coerceIn(0f, (bounds.height - minHeight).coerceAtLeast(0f))
         }
     }
+}
+
+/**
+ * The widgets holding the home screen still, by the instance that asked for it: a set, since two can hold it at once
+ * and one letting go must not free the screen the other holds. Never saved, so a restart comes up unlocked. Main
+ * thread only.
+ */
+internal class HomeLock {
+    // mutableStateSetOf doesn't exist; a map with unit values is the same thing, and recomposes what reads it.
+    private val owners = mutableStateMapOf<Any, Unit>()
+
+    /** Something holds the home screen still. */
+    val locked get() = owners.isNotEmpty()
+
+    fun lock(
+        owner: Any,
+        on: Boolean,
+    ) {
+        if (on) owners[owner] = Unit else owners -= owner
+    }
+
+    fun unlockAll() = owners.clear()
 }
 
 /** A text field on a home tile's widget, which has the keyboard while it's [TerminalTiles.field]; [release] takes its focus away. */

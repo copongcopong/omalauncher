@@ -108,6 +108,17 @@ fun HomeScreen(
     var menuFor by remember { mutableStateOf<HomeItem?>(null) }
 
     val terminals = runtime.terminals
+    // A page that has the tile holds the screen still, so its drags stay its own; editing lets go so a page can be moved.
+    LaunchedEffect(terminals.browser, state.editing, arrange.folder) {
+        terminals.syncFocusLock(state.editing != null || arrange.folder != null)
+    }
+    // Composed last, a BackHandler takes Back first; this one goes before the others to take it only when nothing else on
+    // home wants it, so a tile typing (a terminal's control, a page's history) gets it as it does now.
+    BackHandler(enabled = terminals.locked) {
+        // The page lets go first: unlocking while it still has the tile would only lock it again.
+        terminals.deactivate()
+        terminals.unlockAll()
+    }
     BackHandler(enabled = terminals.typing) { terminals.deactivate() }
     BackHandler(enabled = state.homeMenuOpen) { state.homeMenuOpen = false }
     BackHandler(enabled = state.editing != null && !state.homeMenuOpen) { state.editing = null }
@@ -263,8 +274,9 @@ fun HomeScreen(
         Modifier
             .fillMaxSize()
             // Swiping up opens the drawer, like stock launchers, or what gesture settings say; not while editing, in a
-            // folder or typing in a tile. A long-press drag takes its touches first, and the pager only wants sideways ones.
-            .homeSwipe(runtime, state, enabled = !terminals.typing && state.editing == null && arrange.folder == null)
+            // folder or typing in a tile, nor while a widget holds the screen still. A long-press drag takes its touches
+            // first, and the pager only wants sideways ones.
+            .homeSwipe(runtime, state, enabled = !terminals.typing && state.editing == null && arrange.folder == null && !terminals.locked)
             // Typing in a tile (its terminal or a widget's text field): lift the pages so the tile stays above the keyboard,
             // but not under the status bar; a tile too tall for both gives up the rest at its bottom.
             .graphicsLayer {
@@ -323,6 +335,7 @@ fun HomeScreen(
             arrange = arrange,
             modifier = Modifier.weight(1f).fillMaxWidth(),
             selected = state.editing,
+            locked = terminals.locked,
             onSelect = { state.editing = it },
             actions = { item ->
                 // A pinned Android app offers its shortcuts above the bar, as its long-press menu in the drawer does.
@@ -438,6 +451,18 @@ fun HomeScreen(
             onRenameFolder = { folder, name -> engine.shortcuts.rename(folder.key, name) },
         )
     }
+    }
+
+    // A widget holds the home screen still: the border, and the way out of it, over the pages and above them here, so
+    // a widget that covers the tile area can't cover the way out.
+    if (terminals.locked) {
+        LockCue(
+            face = faceShowing,
+            onUnlock = {
+                terminals.deactivate()
+                terminals.unlockAll()
+            },
+        )
     }
 
     if (extraKeys) {
