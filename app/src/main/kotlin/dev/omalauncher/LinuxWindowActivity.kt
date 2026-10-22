@@ -193,7 +193,8 @@ private fun AppWindow(
                 Box(Modifier.fillMaxSize().linuxWindowInput(runtime.wm, window))
                 Box(
                     Modifier
-                        .align(Alignment.BottomEnd)
+                        // This fork puts the keyboard button at a window's bottom left.
+                        .align(Alignment.BottomStart)
                         .padding(12.dp)
                         .size(40.dp)
                         .background(Palette.overlay, CircleShape)
