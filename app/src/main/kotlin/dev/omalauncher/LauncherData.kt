@@ -34,9 +34,6 @@ object LauncherData {
     /** style.toml and its defaults; see [dev.omalauncher.theme.StyleStore]. The guest sees ~/.config/omalauncher/style. */
     fun styleDir(context: Context) = File(context.filesDir, "style")
 
-    /** keys.toml, the extra-keys bar; see [dev.omalauncher.ui.ExtraKeysStore]. The guest sees ~/.config/omalauncher/keys. */
-    fun keysDir(context: Context) = File(context.filesDir, "keys")
-
     /** layout.toml, where home's tiles and pages are; see [dev.omalauncher.widgets.HomeStore]. The guest sees ~/.config/omalauncher/home. */
     fun homeDir(context: Context) = File(context.filesDir, "home")
 

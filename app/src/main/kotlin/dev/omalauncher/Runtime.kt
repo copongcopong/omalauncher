@@ -38,7 +38,6 @@ import dev.omalauncher.linux.shellQuote
 import dev.omalauncher.theme.Style
 import dev.omalauncher.theme.StyleStore
 import dev.omalauncher.theme.ThemeStore
-import dev.omalauncher.ui.ExtraKeysStore
 import dev.omalauncher.ui.Gestures
 import dev.omalauncher.ui.KeyboardBridge
 import dev.omalauncher.ui.SettingsPage
@@ -78,11 +77,10 @@ class Runtime(
     val wm = WindowManager()
     val server = WaylandServer(proot.waylandSocket.path, wm).also { wm.server = it }
     val keyboard = KeyboardBridge(wm)
-    val extraKeys = ExtraKeysStore(context)
     val terminals = TerminalTiles(this)
     val style = StyleStore(context)
     val terminalFont = TerminalFont(proot, style)
-    val launcherFont = LauncherFont(proot, style).also { it.restore() }
+    val launcherFont = LauncherFont(proot, style, context.resources).also { it.restore() }
     val gestures = Gestures(context, style)
     val linuxApps = LinuxAppCatalog(context, proot)
     val androidApps = AndroidAppCatalog(context)
@@ -198,7 +196,6 @@ class Runtime(
             }
             themes.load()
             style.start()
-            extraKeys.start()
             widgets.start()
             // On the first-run screen the download is the screen's job, with progress.
             if (launcherReady) scope.launch { themes.ensureRelease() }
@@ -218,6 +215,20 @@ class Runtime(
 
     /** Continues a failed install, or a failed update of an installed system. */
     fun retryLinux() = runLinux { bootstrap.run() }
+
+    /** Stops an install that hasn't completed, running or failed, and deletes what it downloaded and unpacked. */
+    fun cancelLinux() {
+        val install = linuxJob
+        if (!bootstrap.cancel()) return
+        linuxJob =
+            scope.launch {
+                install?.cancel()
+                withContext(Dispatchers.IO) { proot.killAll() }
+                install?.join()
+                bootstrap.remove()
+                setService(false)
+            }
+    }
 
     /** Runs [work] with the foreground service up, so it goes on outside the app; then starts Linux if it's installed. */
     private fun runLinux(work: suspend () -> Unit) {
@@ -419,14 +430,13 @@ class Runtime(
         mono: Boolean,
     ): ImageBitmap? {
         val program = spec.program ?: return null
-        val image = program.iconImage
-        val svg = program.icon
-        if (image == null && svg == null) return null
+        val key = program.iconKey ?: return null
         val accent = Palette.accent.toArgb()
         val size = (52 * context.resources.displayMetrics.density).toInt()
         val drawn =
-            owlIcons.getOrPut((svg ?: "image:" + image.contentHashCode()) to accent) {
-                val bmp = if (image != null) decodeImageIcon(image, size) else decodeSvgIcon(svg!!, size, accent)
+            owlIcons.getOrPut(key to accent) {
+                val image = program.iconImage
+                val bmp = if (image != null) decodeImageIcon(image, size) else decodeSvgIcon(program.icon!!, size, accent)
                 bmp?.let { it.asImageBitmap() to bitmapMask(it).asImageBitmap() }
             }
         return if (mono) drawn?.second else drawn?.first

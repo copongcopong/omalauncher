@@ -18,11 +18,11 @@ android {
     ndkVersion = prootNdk
 
     defaultConfig {
-        applicationId = "dev.omalauncher.fold"
+        applicationId = "dev.omalauncher"
         minSdk = 29
         targetSdk = 37
-        versionCode = 19
-        versionName = "0.10.0-z"
+        versionCode = 21
+        versionName = "0.11.0-z"
         ndk { abiFilters += "arm64-v8a" }
     }
 

@@ -14,11 +14,15 @@
 >   `~/.config/omalauncher/style/style.toml` (0.3 to 1, or Style › terminal › opacity) is foot's
 >   own background alpha, so the text stays solid over the wallpaper. Terminals started after the
 >   change; a standalone Linux window keeps its background.
-> - The extra-keys bar is a config file, `keys.toml`: its rows and keys are edited in the
+> - ~~The extra-keys bar is a config file, `keys.toml`: its rows and keys are edited in the
 >   terminal (`~/.config/omalauncher/keys/keys.toml`) and redraw on save, no rebuild. The
 >   preset is the fork's own keys, `^b`, `^a` and `^p` on the second row, at
 >   `height = 36` and `text = 12`, and the file's own header says how to update it and
->   links the format's docs: [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md).
+>   links the format's docs: [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md).~~ **Retired in
+>   0.11.0-z, superseded by upstream's own:** 0.11.0 made the key bar an owl file,
+>   `keybar.owl`, and the fork adopted it. `keys.toml` is no longer read. This fork's rows,
+>   `height` and `text` moved into the bar it ships, so a bar you hadn't edited looks the
+>   same; [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md) says where each line went.
 > - A `Browser` node (owl 11): a web page in a tile, drawn by Android's own WebView, so it needs
 >   no Linux. https only, script off unless `js: true`, two pages per widget, and a page that
 >   keeps its place across tab switches.
@@ -36,12 +40,13 @@
 
 <p>
   <img src="docs/fork/full-width-terminal.jpg" width="32%" alt="A terminal widget spanning the whole inner screen, with three tabs and widgets below it">
-  <img src="docs/fork/keys-bar.jpg" width="32%" alt="The extra-keys bar over the soft keyboard, two rows from keys.toml, while an agent edits the file">
+  <img src="docs/fork/keys-bar.jpg" width="32%" alt="The extra-keys bar over the soft keyboard, two rows of keys, while an agent edits the file behind it">
   <img src="docs/fork/full-width-widgets.jpg" width="32%" alt="Full-width home widgets: date and weather, system info, hacker news, calendar and a battery heatmap">
 </p>
 
 Left to right: a terminal tile across the whole inner screen with three tabs; the extra-keys
-bar over the soft keyboard while an agent edits `keys.toml`; and widgets laid out full width,
+bar over the soft keyboard ~~while an agent edits `keys.toml`~~ (the file behind it is
+`keybar.owl` since 0.11.0-z); and widgets laid out full width,
 here the date and weather, system info, Hacker News, a calendar and a battery heatmap.
 
 <p>
@@ -116,11 +121,17 @@ installed one; the choice is saved in `~/.config/omalauncher/agent`. Hold the mi
 into the field. Speech is recognized by Android (on the device when the phone
 supports it), so only text reaches Linux.
 
+The app drawer is a widget too, `drawer.owl` in the widgets folder, so an
+agent can rewrite it. Here Grok sorts it into folders:
+
+<img src="art/drawer-folders.webp" width="360" alt="Grok rewrites drawer.owl, and the app drawer opens sorted into folders">
+
 Touch input in Linux windows: tap is a left click, long press is a right
 click, drag scrolls; apps with touch support (foot, GTK) get real touch.
 Focusing a terminal raises the soft keyboard with the extra-keys bar above it —
-ctrl, alt and shift and whatever else you put in `keys.toml`; see
-[docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md).
+ctrl, alt and shift ~~and whatever else you put in `keys.toml`~~ and whatever else you put in
+`keybar.owl`, upstream's file since 0.11.0-z; see
+[app/src/main/assets/widgets/docs/keybar.md](app/src/main/assets/widgets/docs/keybar.md).
 Hardware keyboard shortcuts: Super+Enter (terminal), Super+Space or
 Super+A (the bar), Super+1..9 (home pages) on the home screen; Super+Enter
 and Super+W (close) in Linux windows.
@@ -147,8 +158,9 @@ In debug builds you can launch guest commands with
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the compositor, rendering, GPU
   acceleration, and how updates reach existing installs
-- [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md): the terminal's extra-keys bar and the
-  `keys.toml` that its rows, keys and height come from
+- [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md): ~~the terminal's extra-keys bar and the
+  `keys.toml` that its rows, keys and height come from~~ retired in 0.11.0-z in favour of
+  upstream's `keybar.owl`; the page is kept as the mapping from a `keys.toml` to it
 - [docs/RELEASING.md](docs/RELEASING.md): Play releases and store assets
 - [app/src/main/assets/widgets/README.md](app/src/main/assets/widgets/README.md):
   the widget language
