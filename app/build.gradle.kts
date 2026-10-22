@@ -18,7 +18,7 @@ android {
     ndkVersion = prootNdk
 
     defaultConfig {
-        applicationId = "dev.omalauncher"
+        applicationId = "dev.omalauncher.fold"
         minSdk = 29
         targetSdk = 37
         versionCode = 21
