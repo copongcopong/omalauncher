@@ -20,8 +20,8 @@ change. When a sync lands, re-read it against the new upstream and fix whatever 
 | | |
 |---|---|
 | package | `dev.omalauncher.fold` |
-| version name | `<upstream>-z`, e.g. `0.10.0-z` |
-| version code | one above upstream's, so it installs over an upstream build, e.g. `19` |
+| version name | `<upstream>-z`, e.g. `0.11.0-z` |
+| version code | one above upstream's, so it installs over an upstream build, e.g. `21` |
 | signing | release falls back to the debug key, which is what the phone's install has |
 | releases | tag `v<versionName>`, built by `.github/workflows/fork-release.yml` |
 
@@ -50,7 +50,7 @@ either works or is rejected cleanly. Numbers are global, so two features cannot 
 | level | whose | what |
 |---|---|---|
 | 11 | shared | upstream's panels, `android.drawer`, `appAction`, `workApps`, `shortcuts`, lazy Columns and Grids, `Image.label`, `Text.minLines`, `chunk`, `rank`, `strongMatch`, app `statusBar`; the fork's `Browser` node and `web(...)` |
-| 12 | upstream | `screenTop`, how much of an app's top a camera cutout covers |
+| 12 | upstream | `screenTop`, how much of an app's top a camera cutout covers; `keybar "…" { }` files, `pressKey`, `typeText`, `latch`, `keybar.gaps-out` and `keybar.border-width` |
 | 13 | fork | `lock(true)` and `lock(false)` |
 
 Level 11 is deliberately shared. `Browser` shipped at 11 before upstream took 11 for panels, and
@@ -75,8 +75,20 @@ cells.
 ### Terminal
 
 `terminal.opacity` (0.3 to 1.0, default 1) lets a terminal show the wallpaper through it. The
-⌨ button at a window's bottom left, and the `keys.toml` extra-keys bar, came through the
-0.9.0 sync unchanged.
+⌨ button at a window's bottom left came through the 0.9.0 sync unchanged.
+
+~~The `keys.toml` extra-keys bar, which carried its own parser, store, file watch and unit test,
+with the rows in the guest and the bar redrawn on save.~~ **Retired in the 0.11.0 sync.** Upstream
+0.11.0 made the key bar an owl file of its own, `keybar.owl`, with `pressKey`, `typeText` and
+`latch` at owl 12 and `keybar.gaps-out`/`keybar.border-width` in Style, which covers what
+`keys.toml` did and more. The fork adopted it: `ui/ExtraKeysSpec.kt`, `ui/ExtraKeysStore.kt`,
+`ui/ExtraKeysSpecTest.kt`, `LauncherData.keysDir` and the guest bind for `~/.config/omalauncher/keys`
+are gone, and the rows `keys.toml` had as its preset are the bar this fork ships as
+`assets/widgets/keybar.owl` (36 dp rows, 12 sp labels).
+
+This is the one fork feature upstream has taken over the same ground as, so it is also the one to
+drop from any upstream conversation: a PR for `terminal.opacity` or the ⌨ button stays as it was,
+there is nothing to send for the bar.
 
 ### Browser node
 
@@ -137,14 +149,15 @@ section each for Browser tiles and the screen lock.
 
 ## Sending a feature upstream
 
-Upstream has none of these: `terminal.opacity`, the keys bar, `Browser` and `lock` all read as
-absent from `upstream/main`, and the 12-column grid ships there already as a setting, so only
-the default differs.
+Upstream has none of these: `terminal.opacity`, `Browser` and `lock` all read as absent from
+`upstream/main`, and the 12-column grid ships there already as a setting, so only the default
+differs. The keys bar is no longer one of them: upstream took that ground in 0.11.0 with
+`keybar.owl`, and the fork dropped its own.
 
 | feature | owl level | files it touches | how hard to port |
 |---|---|---|---|
 | `terminal.opacity` | none | `theme/Style.kt`, the terminal's draw path | small |
-| keys bar and ⌨ button | none | `ui/ExtraKeys*`, `keys.toml`, terminal windows | medium, and its own docs |
+| ~~keys bar and ⌨ button~~ | ~~none~~ | ~~`ui/ExtraKeys*`, `keys.toml`, terminal windows~~ | gone: upstream's `keybar.owl` replaced it. The ⌨ button is all that is left of the fork's, and it is a one-line move |
 | Browser node | 11 in the fork, taken upstream | `ui/BrowserView.kt`, owl's `Schema`, `Compiler`, `Builtins`, `Program`, `Render.kt`, `WidgetInstance`, `WidgetServices`, `WidgetEngine`, `Catalog` | medium, self-contained |
 | screen lock | 13 in the fork | `TerminalTiles`, `Home`, `HomeGrid`, `Launcher`, `LockCue`, `WidgetInstance`, owl's `Schema`, `Builtins` | medium, and `Home`/`Launcher` are the files upstream rewrites most |
 

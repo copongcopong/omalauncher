@@ -8,17 +8,15 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,35 +36,29 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import dev.omalauncher.Runtime
+import dev.omalauncher.theme.Style
+import dev.omalauncher.widgets.render.WidgetKeybar
+import dev.omalauncher.widgets.runtime.WidgetInstance
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Keycap and gap sizes that don't come from the file: the frame, its gap, and the bar's side gap. */
+/** One row's height, keycap and the gap around it; the stock extra keys are two rows, like Termux's default. */
+internal val KeyRowHeight = 40.dp
 internal val KeyGap = 3.dp
 internal val FrameWidth = 2.dp
 
 /**
- * One row's height where a bar isn't the terminal's: the editor's key row draws with the
- * same keycaps. The extra-keys bar takes its own from keys.toml instead ([ExtraKeysSpec.Sizes]).
+ * The stock key bar's full height at the user's keybar.gaps-out and keybar.border-width, its gap to the keyboard
+ * included: what home lifts a typing tile by until it has measured the bar.
  */
-internal val KeyRowHeight = 40.dp
-
-/** The gap between the bar and the keyboard, and to the screen's sides: the tiles' gap. */
-private val Gap = 6.dp
-
-/**
- * The bar's full height for [sizes] and [rowCount] rows, gap included, and nothing
- * when it has no rows; the home screen lifts a typing tile by this much more.
- */
-fun extraKeysHeight(
-    sizes: ExtraKeysSpec.Sizes,
-    rowCount: Int,
-): Dp = if (rowCount <= 0) 0.dp else sizes.row.dp * rowCount + (FrameWidth + KeyGap) * 2 + Gap
+val ExtraKeysHeight: Dp
+    get() =
+        KeyRowHeight * 2 + (LauncherStyle.style[Style.KEYBAR_BORDER_WIDTH].toFloat().dp + KeyGap) * 2 +
+            LauncherStyle.style[Style.KEYBAR_GAPS_OUT].toFloat().dp
 
 /**
  * Whether the extra-keys row belongs on screen: only over a docked soft
@@ -84,62 +76,35 @@ fun extraKeysWanted(): Boolean {
 }
 
 /**
- * The keys a phone keyboard lacks, docked above it for terminals: a framed
- * panel of keycaps, like the tiles above it. Keys never take focus, so the
- * soft keyboard stays up; ctrl, alt and shift latch for the next key on a tap
- * and lock on a long press. The rows and the size of them are [ExtraKeysStore]'s,
- * so editing keys.toml redraws them.
+ * The keys a phone keyboard lacks, docked above it for terminals: keybar.owl (`keybar "…" { }`), else the stock ones.
+ * Their nodes never take focus, so the soft keyboard stays up; `pressKey(...)` and `latch(...)` reach [Runtime.keyboard].
  */
 @Composable
 fun ExtraKeys(
-    bridge: KeyboardBridge,
-    rows: List<List<ExtraKey>>,
-    sizes: ExtraKeysSpec.Sizes,
+    runtime: Runtime,
     modifier: Modifier = Modifier,
 ) {
-    if (rows.isEmpty()) return
-    Column(
-        modifier
-            .fillMaxWidth()
-            .padding(start = Gap, end = Gap, bottom = Gap)
-            .frame(FrameWidth, Palette.border, Palette.background, radius = 12.dp)
-            .padding(KeyGap),
-    ) {
-        for (row in rows) {
-            Row(Modifier.fillMaxWidth().height(sizes.row.dp)) {
-                for (key in row) {
-                    val cap = Modifier.weight(1f).fillMaxHeight().padding(KeyGap)
-                    when (key) {
-                        is Press -> PlainKey(key, bridge, sizes, cap)
-                        is LatchKey -> bridge.latch(key.modifier)?.let { StickyKey(key, it, sizes, cap) }
-                    }
-                }
-            }
-        }
+    val widgets = runtime.widgets
+    // Before the file runs too, so it's live as soon as it does.
+    DisposableEffect(widgets) {
+        widgets.keybarShown(true)
+        onDispose { widgets.keybarShown(false) }
+    }
+    val inst = widgets.keybarInstance() ?: return
+    WidgetKeybar(inst, modifier.fillMaxWidth())
+}
+
+/** The extra keys at the bottom of a screen, where the keyboard would push them up, for owl-check's picture of them. */
+@Composable
+internal fun KeybarPreview(inst: WidgetInstance) {
+    Box(Modifier.fillMaxSize().background(Palette.background).safeDrawingPadding(), contentAlignment = Alignment.BottomCenter) {
+        WidgetKeybar(inst, Modifier.fillMaxWidth())
     }
 }
 
-@Composable
-private fun PlainKey(
-    key: Press,
-    bridge: KeyboardBridge,
-    sizes: ExtraKeysSpec.Sizes,
-    modifier: Modifier,
-) = RepeatingKeyCap(
-    key.label,
-    key.arrow?.let { Icons.Chevron },
-    key.arrow ?: 0f,
-    key.repeats,
-    modifier,
-    { bridge.tap(key.code, key.held) },
-    // Half the row, so a shorter bar gets a smaller chevron with it.
-    iconSize = (sizes.row * 0.5f).coerceAtMost(20f).dp,
-    labelSize = sizes.text.sp,
-)
-
 /**
  * A keycap that acts on touch down, and keeps acting while held when it [repeats]:
- * the terminal's extra keys and the editor's. Shows [icon] turned by [rotation], else [label].
+ * the editor's extra keys. Shows [icon] turned by [rotation], else [label].
  */
 @Composable
 internal fun RepeatingKeyCap(
@@ -149,9 +114,6 @@ internal fun RepeatingKeyCap(
     repeats: Boolean,
     modifier: Modifier,
     onPress: () -> Unit,
-    // The terminal's bar sizes its caps from keys.toml; the editor's key row takes the defaults.
-    iconSize: Dp = 20.dp,
-    labelSize: TextUnit? = null,
 ) {
     val view = LocalView.current
     val press by rememberUpdatedState(onPress)
@@ -180,60 +142,10 @@ internal fun RepeatingKeyCap(
     ) {
         val color = if (pressed) Palette.background else Palette.foreground
         if (icon != null) {
-            Image(icon, label, Modifier.size(iconSize).rotate(rotation), colorFilter = ColorFilter.tint(color))
+            Image(icon, label, Modifier.size(20.dp).rotate(rotation), colorFilter = ColorFilter.tint(color))
         } else {
-            BasicText(
-                label,
-                style = if (labelSize != null) Mono.copy(color = color, fontSize = labelSize) else Mono.copy(color = color),
-                maxLines = 1,
-            )
+            BasicText(label, style = Mono.copy(color = color), maxLines = 1)
         }
-    }
-}
-
-@Composable
-private fun StickyKey(
-    key: LatchKey,
-    sticky: StickyModifier,
-    sizes: ExtraKeysSpec.Sizes,
-    modifier: Modifier,
-) {
-    val view = LocalView.current
-    val latch = sticky.latch
-    KeyCap(
-        modifier.pointerInput(sticky) {
-            presses { scope ->
-                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                var locked = false
-                val hold =
-                    scope.launch {
-                        delay(RepeatDelay)
-                        sticky.latch = Latch.Locked
-                        locked = true
-                        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                    }
-                val up = waitForUpOrCancellation() != null
-                hold.cancel()
-                if (up && !locked) sticky.latch = if (sticky.latch == Latch.Off) Latch.Once else Latch.Off
-            }
-        },
-        // Once: outlined in the accent, for the next key. Locked: filled, until tapped off.
-        fill = if (latch == Latch.Locked) Palette.accent else Palette.surface,
-        outline = if (latch == Latch.Once) Palette.accent else null,
-    ) {
-        BasicText(
-            key.label,
-            style =
-                Mono.copy(
-                    fontSize = sizes.text.sp,
-                    color =
-                        when (latch) {
-                            Latch.Off -> Palette.foreground
-                            Latch.Once -> Palette.accent
-                            Latch.Locked -> Palette.background
-                        },
-                ),
-        )
     }
 }
 
@@ -264,5 +176,6 @@ internal suspend fun PointerInputScope.presses(press: suspend AwaitPointerEventS
         }
     }
 
+/** How long a key is held before it repeats, and how often it repeats then: the editor's keys and owl's `repeats`. */
 internal const val RepeatDelay = 400L
 internal const val RepeatInterval = 50L

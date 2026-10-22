@@ -250,7 +250,6 @@ private fun DesktopScreen(
     FileErrors(
         listOf(
             StyleStore.FILE to runtime.style.errors,
-            ExtraKeysStore.FILE to runtime.extraKeys.errors,
             HomeStore.FILE to runtime.widgets.home.errors,
         ) + runtime.gestureProblems(),
     )

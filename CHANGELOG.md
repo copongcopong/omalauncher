@@ -4,6 +4,26 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
+## 0.11.0-z (versionCode 21) – 2026-10-22
+
+Omalauncher Z on upstream 0.11.0 (versionCode 20) and its main: the terminal key bar is an owl
+file now, `keybar.owl`, and owl 12 adds `secret` state kept in the Android keystore, Input
+`password`, post's `method:`, `toBase64`/`fromBase64`, `screenTop`, `pressKey`, `typeText`, `latch`,
+`onPress`/`onRelease`, `repeats` and `android.modifiers`. Also the 0.10.1 fixes: the store's kind
+toggle no longer crashes, going home during a backup doesn't, and backups leave out Linux so they
+fit Android's quota.
+
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)):
+
+- **The `keys.toml` extra-keys bar is retired**, superseded by upstream's own `keybar.owl`, which
+does the same job as a `keybar "…" { }` file in the guest with more to it: any rows, `pressKey`,
+`typeText`, latched modifiers, keys that run commands, and its gaps and border in Style. The fork's
+rows are what it ships as its bar, 36 dp a row with 12 sp labels, so a bar nobody edited looks as
+it did; `keys.toml` is no longer read, and [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md) maps each line
+of one onto the file that replaced it.
+- The `Browser` node at owl 11 and the screen lock at owl 13 come through the sync unchanged, and the
+widget docs now carry them as `docs/browser.md` and `docs/lock.md`.
+
 ## 0.10.0-z (versionCode 19) – 2026-10-22
 
 Omalauncher Z on upstream 0.10.0 (versionCode 18) and its main: the app drawer is an owl
@@ -26,6 +46,42 @@ Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalaun
 - A Browser example beside `45-browser.owl`: `45-fav-sites.owl` keeps Hacker News,
   old.reddit.com, GitHub trending and this repo behind one button's menu, with back, forward
   and reload above the page.
+
+## 0.11.0 (versionCode 20) – 2026-10-21
+
+- The terminal key bar is an owl file: keybar.owl, which you or an agent can edit
+  like drawer.owl, with .stock-keybar.owl as the fallback. Settings › style shows
+  whether it's stock, edited, has errors or removed, and sets its gaps and border
+  width. Owl 12 adds `keybar "…" { }` files, `pressKey`, `typeText`, `latch`,
+  `android.modifiers`, `onPress`/`onRelease` and `repeats`.
+- Owl 12 also: `secret` state, kept encrypted with Android's keystore and sent only
+  to the server written out in its request's URL; Input `password`; post's
+  `method:` PUT, PATCH and DELETE; `toBase64`/`fromBase64`; `screenTop` for apps
+  without a status bar. `requires { pacman: [] }` no longer makes a widget need Linux.
+- Widget requests follow redirects themselves and send headers and bodies only to
+  the server they name; a response over 1 MB fails rather than being cut; a failed
+  post says why in err. A runaway regex or a huge value can't freeze or take down
+  the launcher, and a stream's command stops when its widget lets go of it.
+- Installing Linux checks for free space before downloading (it needs about 3 GB)
+  and can be cancelled. Without Linux, a widget's edit and other agent buttons offer
+  to install it instead of failing.
+- Fixes: the status bar's icon colour after a fold or rotation; settings' subtitles
+  in the White theme; a store widget that doesn't fit shows the page it went to; the
+  store's previews use far less memory; Files handles links into /proc or out of
+  Linux and opens .owl files in its editor; symbols the launcher's font lacks; the
+  edit bar of a widget in home's top row.
+
+## 0.10.1 (versionCode 19) – 2026-10-20
+
+- The store's kind toggle showed a "panels" tab with no store behind it, and tapping
+  it crashed the launcher; it lists widgets, faces and apps again.
+- Going home while a backup or device transfer ran crashed (the process runs with a
+  plain Application then); home now closes until the process restarts.
+- Backups and device transfers leave out Linux (the rootfs and its setup records)
+  and Omarchy's downloaded release: a restored phone shows Linux as not installed
+  instead of a broken rootfs, and the backup fits Android's 25 MB quota. Before,
+  a phone with Linux got no backup at all ("Size quota exceeded").
+
 
 ## 0.10.0 (versionCode 18) – 2026-10-20
 

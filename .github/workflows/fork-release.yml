@@ -6,7 +6,7 @@ name: fork release
 #
 # Signed with the debug keystore, deliberately: it is the key every build on this phone
 # has used, so a release installs as an update over an earlier one and the app's data,
-# its keys.toml and its Arch install stay put. A new upload key would mean uninstalling
+# its widget files and its Arch install stay put. A new upload key would mean uninstalling
 # first. The keystore lives in repo secrets (KEYSTORE_*), not in this repo.
 #
 # Upstream's release.yml keeps the Play upload key and stays upstream-only: a v*-z tag
@@ -119,8 +119,8 @@ jobs:
       - name: Notes
         run: |
           cat > "$RUNNER_TEMP/notes.md" <<'EOF'
-          Omalauncher Z, on upstream 0.10.0 (the drawer as a widget file, home's layout.toml,
-          owl 11's panels and lazy lists) with this fork's changes:
+          Omalauncher Z, on upstream 0.11.0 (the terminal key bar as a widget file, owl 12's kept
+          secrets and key handling, the store and backup fixes) with this fork's changes:
 
           - a Browser tile at owl 11: a web page in a tile, https only, script off unless `js: true`,
             with `examples/45-fav-sites.owl` putting a menu of favorite sites under one button
@@ -128,8 +128,11 @@ jobs:
           - a 12-column home grid across a foldable's inner screen, so a widget tile can be full width
             (`home.columns` and `home.single-page` in Style, 12 and on as this fork's defaults)
           - the keyboard button at a window's bottom left
-          - the terminal's extra keys in `keys.toml`, editable in the guest and redrawn on save
           - a terminal's background can be see-through (`terminal.opacity`), with the text left solid
+
+          The bar this fork used to keep in `keys.toml` is upstream's `keybar.owl` now: the same
+          rows, 36 dp a row, shipped as this launcher's key bar. A `keys.toml` from an earlier
+          build is no longer read; docs/EXTRA-KEYS.md maps one onto the new file.
 
           The changelog has the whole list:
           https://github.com/copongcopong/omalauncher/blob/main/CHANGELOG.md
