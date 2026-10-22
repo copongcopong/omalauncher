@@ -30,6 +30,7 @@ class ScreenLockTest {
             headers: Map<String, String>,
             timeoutSeconds: Int,
             body: ByteArray?,
+            method: String,
         ): ShellResult = error("no http")
 
         override fun run(
