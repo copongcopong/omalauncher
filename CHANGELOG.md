@@ -4,7 +4,7 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
-## 0.10.0-z (versionCode 19) – 2026-10-20
+## 0.10.0-z (versionCode 19) – 2026-10-22
 
 Omalauncher Z on upstream 0.10.0 (versionCode 18) and its main: the app drawer is an owl
 panel now, home's layout is `layout.toml`, and owl 11 gained panels, lazy columns, app
@@ -23,6 +23,9 @@ Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalaun
 - The home grid is 12 columns across a foldable's inner screen, from the fork's `home.columns`
   default, widened to 4..12.
 - The terminal's ⌨ button, `terminal.opacity` and the `keys.toml` extra-keys bar.
+- A Browser example beside `45-browser.owl`: `45-fav-sites.owl` keeps Hacker News,
+  old.reddit.com, GitHub trending and this repo behind one button's menu, with back, forward
+  and reload above the page.
 
 ## 0.10.0 (versionCode 18) – 2026-10-20
 

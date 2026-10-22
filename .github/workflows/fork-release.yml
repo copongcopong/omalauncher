@@ -119,9 +119,12 @@ jobs:
       - name: Notes
         run: |
           cat > "$RUNNER_TEMP/notes.md" <<'EOF'
-          Omalauncher Z, on upstream 0.9.0 (faces, owl 9 through 11, the redesigned start page,
-          the store's previews and faces tab) with this fork's changes:
+          Omalauncher Z, on upstream 0.10.0 (the drawer as a widget file, home's layout.toml,
+          owl 11's panels and lazy lists) with this fork's changes:
 
+          - a Browser tile at owl 11: a web page in a tile, https only, script off unless `js: true`,
+            with `examples/45-fav-sites.owl` putting a menu of favorite sites under one button
+          - `lock(true)` at owl 13: a widget holds home still, with a border and a chip that lets go
           - a 12-column home grid across a foldable's inner screen, so a widget tile can be full width
             (`home.columns` and `home.single-page` in Style, 12 and on as this fork's defaults)
           - the keyboard button at a window's bottom left
