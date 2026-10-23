@@ -28,6 +28,11 @@
 >   keeps its place across tab switches.
 > - A screen lock (owl 13): a widget holds home still while it is being used, so a drag stays
 >   its own. A border and a chip say so, and the chip's button always lets go.
+> - A development browser, apart from home: `browser-dev [url|port]` in the guest opens a window
+>   that takes `http://` on this phone's loopback as well as https, and that an agent can attach
+>   to with the Chrome DevTools Protocol to look at, drive and screenshot the page. It has its own
+>   process, WebView data directory and cookies, so the tiles' `Browser` node stays https only and
+>   its pages stay unsteerable. [docs/BROWSER-DEV.md](docs/BROWSER-DEV.md).
 >
 > That list, with each addition's owl level, the files it touches and what an upstream pull
 > request would still need, is [docs/FORK.md](docs/FORK.md). It is the running record of the
@@ -161,6 +166,8 @@ In debug builds you can launch guest commands with
 - [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md): ~~the terminal's extra-keys bar and the
   `keys.toml` that its rows, keys and height come from~~ retired in 0.11.0-z in favour of
   upstream's `keybar.owl`; the page is kept as the mapping from a `keys.toml` to it
+- [docs/BROWSER-DEV.md](docs/BROWSER-DEV.md): the development browser, `browser-dev`, and
+  attaching to a page with the Chrome DevTools Protocol
 - [docs/RELEASING.md](docs/RELEASING.md): Play releases and store assets
 - [app/src/main/assets/widgets/README.md](app/src/main/assets/widgets/README.md):
   the widget language

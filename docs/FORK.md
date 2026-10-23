@@ -116,6 +116,24 @@ Examples: `assets/widgets/examples/45-browser.owl`, `44-fav-sites.owl` and `46-b
 
 Plan and decisions: `docs/BROWSER-NODE-PLAN.md`.
 
+### BrowserDev, a page for working on
+
+A tile's page is deliberately deaf: https at a host written in the file, nothing outside the
+launcher can steer it, and no debug socket. Working on a site served from the guest wants the
+opposite of all three, so it gets a window of its own instead of an option on the node.
+
+`browser-dev [url|port]` in the guest opens `BrowserDevActivity` at a URL, a bare port meaning
+`http://127.0.0.1:<port>/`. It takes any https page and `http://` only on this phone's loopback,
+which the guest shares, and refuses `file:`, `content:`, `javascript:` and `data:`. It runs in
+`android:process=":dev"` with `WebView.setDataDirectorySuffix("dev")`, and
+`setWebContentsDebuggingEnabled(true)` there, so an agent attaches with the Chrome DevTools
+Protocol while home's WebViews stay closed to it, in release builds too. Its cookies are its own,
+and the socket dies with the window.
+
+Files: `BrowserDevActivity.kt`, the manifest's activity, `linux/OpenBridge.kt` (the shim) and
+`linux/DefaultApps.kt` (the command's name). Docs: `docs/BROWSER-DEV.md`. No owl change: it is
+not reachable from a widget file, which is the point.
+
 ### Screen lock
 
 A widget holds the home screen still while it is being used: no page turn, no swipe up, no long
@@ -160,6 +178,7 @@ differs. The keys bar is no longer one of them: upstream took that ground in 0.1
 | ~~keys bar and ⌨ button~~ | ~~none~~ | ~~`ui/ExtraKeys*`, `keys.toml`, terminal windows~~ | gone: upstream's `keybar.owl` replaced it. The ⌨ button is all that is left of the fork's, and it is a one-line move |
 | Browser node | 11 in the fork, taken upstream | `ui/BrowserView.kt`, owl's `Schema`, `Compiler`, `Builtins`, `Program`, `Render.kt`, `WidgetInstance`, `WidgetServices`, `WidgetEngine`, `Catalog` | medium, self-contained |
 | screen lock | 13 in the fork | `TerminalTiles`, `Home`, `HomeGrid`, `Launcher`, `LockCue`, `WidgetInstance`, owl's `Schema`, `Builtins` | medium, and `Home`/`Launcher` are the files upstream rewrites most |
+| BrowserDev | none | `BrowserDevActivity.kt`, the manifest, `linux/OpenBridge.kt` | not for upstream: it answers a developer's need, not a launcher's, and a Play release has no business shipping a DevTools port |
 
 A picked feature goes out as one branch from `upstream/main`, not as a merge of this fork.
 Cherry-pick or copy the fork commits, then:

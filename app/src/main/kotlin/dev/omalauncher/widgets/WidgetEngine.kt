@@ -1059,7 +1059,10 @@ class WidgetEngine(
                 "Saved files show up on the phone within seconds. After saving, run `owl-check <file>`: it prints the errors " +
                 "and the path of a PNG of the tile or view, drawn with live data; look at it to check the layout. " +
                 "examples/ holds more widgets to learn from or move up to use. Scripts, cron jobs and hooks can set a running " +
-                "widget's state or refresh it with `owl-send <file> set <state> <value>` and `owl-send <file> refresh`.\n\n" +
+                "widget's state or refresh it with `owl-send <file> set <state> <value>` and `owl-send <file> refresh`. " +
+                "A site you are building and serving on this phone opens in the launcher's development browser with " +
+                "`browser-dev [port]`, which takes http on loopback (a bare port means http://127.0.0.1:<port>/) and " +
+                "lets you attach with the Chrome DevTools Protocol; it is not a widget, so nothing about it goes in a .owl file.\n\n" +
                 "The launcher's look (theme, background, tile spacing and borders, corners, the system bars' colors, the " +
                 "terminals' font) is ~/${StyleStore.GUEST_DIR}/${StyleStore.FILE}; ${StyleStore.DEFAULTS} next to it lists every " +
                 "setting with its default and range. Changes show within a second; ${StyleStore.ERRORS} there says what was ignored and why.\n\n" +
