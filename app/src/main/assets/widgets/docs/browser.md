@@ -77,3 +77,7 @@ face "work" {
 `widgets/` and use. `examples/44-fav-sites.owl` is a third: a page with a menu of sites in its
 toolbar (Hacker News, old.reddit.com, GitHub trending, this fork's repo) which remembers the one
 picked across restarts.
+
+Working on a page that is served from this phone is the launcher's `browser-dev` command in Arch, not a
+widget: it opens a window of its own that takes `http://` on loopback and can be attached to with the
+Chrome DevTools Protocol. A tile's page never gets either, which is why the two are separate.
