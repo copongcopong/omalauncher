@@ -70,7 +70,7 @@ class BrowserDevActivity : InstantActivity() {
         WebView.setWebContentsDebuggingEnabled(true)
         super.onCreate(savedInstanceState)
         requested = intent?.getStringExtra(EXTRA_URL)
-        setInstantContent { BrowserDevPage(requested) }
+        setInstantContent { BrowserDevPage(requested, onClose = { closeInstantly() }) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -127,7 +127,10 @@ class BrowserDevActivity : InstantActivity() {
 }
 
 @Composable
-private fun BrowserDevPage(requested: String?) {
+private fun BrowserDevPage(
+    requested: String?,
+    onClose: () -> Unit,
+) {
     var address by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var progress by remember { mutableFloatStateOf(0f) }
@@ -149,7 +152,7 @@ private fun BrowserDevPage(requested: String?) {
 
     BackHandler {
         val v = view
-        if (v != null && v.canGoBack()) v.goBack() else closeInstantly()
+        if (v != null && v.canGoBack()) v.goBack() else onClose()
     }
 
     Column(Modifier.fillMaxSize().background(Palette.background).systemBarsPadding()) {
@@ -172,7 +175,7 @@ private fun BrowserDevPage(requested: String?) {
                         .background(Palette.surface, CircleShape)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
             )
-            Round("✕") { closeInstantly() }
+            Round("✕") { onClose() }
         }
 
         // What the page is, and how far it has got.
