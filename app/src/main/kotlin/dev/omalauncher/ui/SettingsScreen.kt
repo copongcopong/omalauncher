@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.omalauncher.LocalNetwork
+import dev.omalauncher.BrowserDevActivity
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.JobState
 import dev.omalauncher.linux.LinuxState
@@ -96,6 +97,11 @@ fun SettingsScreen(
                     context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 },
                 Triple("licenses", "open source software in Omalauncher", onLicenses),
+                // Not a setting: the way back into BrowserDev's window when a person closed it, since the guest's
+                // browser-dev is the other door (docs/BROWSER-DEV.md). Opens the page it was last on.
+                Triple("browser dev", "a page for working on, with DevTools · browser-dev in Arch") {
+                    BrowserDevActivity.open(context)
+                },
             )
         UpdatesBox(runtime, installed)
         if (installed) SetupUpdates(runtime)

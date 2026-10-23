@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
@@ -69,7 +70,7 @@ class BrowserDevActivity : InstantActivity() {
         // The whole point: an agent attaches with the Chrome DevTools Protocol. Process-wide, so this process only.
         WebView.setWebContentsDebuggingEnabled(true)
         super.onCreate(savedInstanceState)
-        requested = intent?.getStringExtra(EXTRA_URL)
+        requested = intent?.getStringExtra(EXTRA_URL) ?: lastUrl(this)
         setInstantContent { BrowserDevPage(requested, onClose = { closeInstantly() }) }
     }
 
@@ -85,6 +86,11 @@ class BrowserDevActivity : InstantActivity() {
         /** With nothing named, a port every dev server on this phone starts at. */
         const val DEFAULT = "5173"
 
+        /** [open] with no URL: the page this window was last on, so closing it loses nothing but the WebView. */
+        fun open(
+            context: Context,
+        ) = open(context, lastUrl(context))
+
         fun open(
             context: Context,
             url: String,
@@ -95,6 +101,19 @@ class BrowserDevActivity : InstantActivity() {
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             )
         }
+
+        /** The page to come back to; [DEFAULT] until one has loaded. */
+        fun lastUrl(context: Context): String = prefs(context).getString(PREF_URL, null) ?: DEFAULT
+
+        /** Called on every load, so the settings row and the next run pick up where the last one left off. */
+        fun remember(
+            context: Context,
+            url: String,
+        ) = prefs(context).edit().putString(PREF_URL, url).apply()
+
+        private const val PREF_URL = "browserDev.url"
+
+        private fun prefs(context: Context) = LauncherData.prefs(context)
 
         /**
          * What a typed or written URL means: a port or a bare loopback host becomes `http://`, anything else
@@ -131,6 +150,7 @@ private fun BrowserDevPage(
     requested: String?,
     onClose: () -> Unit,
 ) {
+    val context = LocalContext.current
     var address by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var progress by remember { mutableFloatStateOf(0f) }
@@ -145,6 +165,7 @@ private fun BrowserDevPage(
         }
         note = ""
         address = url
+        BrowserDevActivity.remember(context, url)
         view?.loadUrl(url)
     }
 
