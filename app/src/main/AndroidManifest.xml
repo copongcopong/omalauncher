@@ -39,6 +39,19 @@
         android:theme="@style/Theme.Omalauncher"
         android:usesCleartextTraffic="true">
 
+        <!-- A page for working on, apart from home: http on this phone's loopback and the Chrome DevTools port,
+             in a process and WebView data directory of its own. Opened from the guest's browser-dev, never exported,
+             so nothing but the launcher starts it (main/kotlin/dev/omalauncher/BrowserDevActivity.kt). -->
+        <activity
+            android:name=".BrowserDevActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|density|uiMode"
+            android:exported="false"
+            android:label="BrowserDev"
+            android:launchMode="singleTask"
+            android:process=":dev"
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".MainActivity"
             android:clearTaskOnLaunch="true"

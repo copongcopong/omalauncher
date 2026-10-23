@@ -3,6 +3,7 @@ package dev.omalauncher.linux
 import android.content.Context
 import android.system.Os
 import android.util.Log
+import dev.omalauncher.BrowserDevActivity
 import dev.omalauncher.openUrl
 import dev.omalauncher.upgrade.Managed
 import dev.omalauncher.upgrade.Policy
@@ -52,6 +53,8 @@ class OpenBridge(
         val url = target.trim()
         // Written by the omarchy-files shim: open the Files app at a guest path.
         if (url.startsWith(FILES_PREFIX)) return onOpenFiles(url.removePrefix(FILES_PREFIX))
+        // Written by the browser-dev shim: a page for working on, with DevTools on, in its own process.
+        if (url.startsWith(DEV_PREFIX)) return BrowserDevActivity.open(context, url.removePrefix(DEV_PREFIX))
         // Written by the omarchy-edit shim: its reply FIFO (no spaces, made by mktemp) and the file.
         if (url.startsWith(EDIT_PREFIX)) {
             val (reply, path) = url.removePrefix(EDIT_PREFIX).split(' ', limit = 2).takeIf { it.size == 2 } ?: return
@@ -106,11 +109,22 @@ class OpenBridge(
                 exec micro "${'$'}@"
                 """.trimIndent() + "\n"
             },
+            Managed.text(File(bin, DEV_COMMAND), Policy.Owned, executable = true) {
+                """
+                #!/bin/sh
+                # omalauncher: the launcher's development browser, at a URL or a port (see BrowserDevActivity.kt). Its
+                # page may be http on this phone's loopback, and an agent attaches to it with the Chrome DevTools
+                # Protocol; it is not home's Browser tiles and doesn't share their cookies.
+                url=${'$'}{1:-${BrowserDevActivity.DEFAULT}}
+                timeout 2 sh -c 'printf "%s\n" "${'$'}1" > $guestFifo' sh "$DEV_PREFIX${'$'}url"
+                """.trimIndent() + "\n"
+            },
         )
     }
 
     private companion object {
         const val FILES_PREFIX = "omarchy-files:"
         const val EDIT_PREFIX = "omarchy-edit:"
+        const val DEV_PREFIX = "browser-dev:"
     }
 }

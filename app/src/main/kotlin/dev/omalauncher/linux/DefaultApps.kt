@@ -7,6 +7,9 @@ import java.io.File
 /** Exec of the Files entry; the launcher opens its own Files app for it (see OpenBridge's shim). */
 const val FILES_COMMAND = "omarchy-files"
 
+/** Exec of the launcher's development browser, from the guest; see OpenBridge's shim. */
+const val DEV_COMMAND = "browser-dev"
+
 /** Exec of the Editor entry and Linux's $EDITOR; the launcher's own editor (see OpenBridge's shim). */
 const val EDIT_COMMAND = "omarchy-edit"
 
