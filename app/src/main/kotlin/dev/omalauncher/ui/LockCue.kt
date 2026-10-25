@@ -61,7 +61,7 @@ fun LockCue(
         ) {
             LockIcon(Palette.accent)
             BasicText("screen locked", style = Mono.copy(fontSize = TextSize.Small))
-            BracketAction("unlock", Palette.accent, onUnlock)
+            BracketAction("unlock", Palette.accent, onClick = onUnlock)
         }
     }
 }

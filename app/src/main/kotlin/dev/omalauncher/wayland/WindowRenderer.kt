@@ -55,37 +55,12 @@ class WindowRenderer(
     private var width = 0
     private var height = 0
 
-    /** The surface [attach] last got, kept so [translucent] can recreate the buffers with it. */
-    @Volatile
-    private var surface: android.view.Surface? = null
-
     /** Filled where no surface covers the window, as 0xAARRGGBB. */
     @Volatile
     var background = 0xFF1A1B26.toInt()
         set(value) {
             if (value == field) return
             field = value
-            redrawAll = true
-            requestFrame()
-        }
-
-    /**
-     * Whether the window carries the clients' alpha, so what's behind it shows through: the
-     * tile's terminal with a translucent background (foot's own `alpha`). An opaque window is
-     * RGBX and every pixel filled, which is cheaper, and is what everything but such a terminal
-     * uses. Changing it re-creates the surface's buffers on the render thread, since the pixel
-     * format is fixed at creation.
-     */
-    @Volatile
-    var translucent = false
-        set(value) {
-            if (value == field) return
-            field = value
-            lock.withLock {
-                val s = surface ?: return@withLock
-                if (native != 0L) Native.windowRelease(native)
-                native = Native.windowCreate(s, width, height, value)
-            }
             redrawAll = true
             requestFrame()
         }
@@ -115,7 +90,6 @@ class WindowRenderer(
         lock.withLock {
             if (native != 0L) Native.windowRelease(native)
             native = Native.windowCreate(surface, w, h, translucent)
-            this.surface = surface
             width = w
             height = h
             redrawAll = true
@@ -128,7 +102,6 @@ class WindowRenderer(
         lock.withLock {
             if (native != 0L) Native.windowRelease(native)
             native = 0L
-            surface = null
         }
 
     fun release() {
