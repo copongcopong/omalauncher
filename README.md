@@ -26,7 +26,7 @@
 > - A `Browser` node (owl 11): a web page in a tile, drawn by Android's own WebView, so it needs
 >   no Linux. https only, script off unless `js: true`, two pages per widget, and a page that
 >   keeps its place across tab switches.
-> - A screen lock (owl 13): a widget holds home still while it is being used, so a drag stays
+> - A screen lock (owl 14): a widget holds home still while it is being used, so a drag stays
 >   its own. A border and a chip say so, and the chip's button always lets go.
 > - A development browser, apart from home: `browser-dev [url|port]` in the guest opens a window
 >   that takes `http://` on this phone's loopback as well as https, and that an agent can attach
@@ -137,9 +137,26 @@ Focusing a terminal raises the soft keyboard with the extra-keys bar above it â€
 ctrl, alt and shift ~~and whatever else you put in `keys.toml`~~ and whatever else you put in
 `keybar.owl`, upstream's file since 0.11.0-z; see
 [app/src/main/assets/widgets/docs/keybar.md](app/src/main/assets/widgets/docs/keybar.md).
-Hardware keyboard shortcuts: Super+Enter (terminal), Super+Space or
-Super+A (the bar), Super+1..9 (home pages) on the home screen; Super+Enter
-and Super+W (close) in Linux windows.
+Hardware keyboard shortcuts: Super+D (the drawer), Super+T (terminal),
+Super+Down (the swipe-down panel), Super+1..9 (home pages) on the home screen;
+Super+W (close) in Linux windows. Android keeps Super on its own, Super+Space,
+Super+A and Super+Enter for itself, so Omarchy's Super+Space and Super+Enter
+can't be used.
+Super+Esc leaves a Linux window or a terminal tile without closing it, since
+Esc itself is theirs; a gamepad's B (Back) does too, as its buttons stay the
+launcher's. On home, in the app drawer, panels and
+widgets, the arrows or Tab (a gamepad's D-pad) move between tiles and what
+takes taps, past the first or last tile to the next page; Enter (A) opens it
+and Menu or holding Enter long-presses it, which selects a home tile for
+editing. Right goes into a widget's own buttons, Left back out to its tile.
+Up from the bar goes back to the tiles, or into the open drawer.
+Enter on a terminal tile goes into it, and Enter there types into it, or
+restarts it once it has exited. Esc (B) closes the drawer, a panel or a
+widget's screen, like Back. Long text, like a license or a file being
+shared, takes the arrows until it has all been shown, Page Up and Page Down a
+screenful. On the pages screen, Enter picks a page up by its â‰¡ and the arrows
+move it, until Enter or Esc puts it down. Menu on a notification in the
+swipe-down panel dismisses it.
 
 ## Building
 

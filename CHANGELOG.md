@@ -4,6 +4,87 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
+## 0.12.2-z (versionCode 24) – 2026-10-25
+
+Omalauncher Z on upstream 0.12.2 (versionCode 23) and its main: owl apps, panels, faces and
+screens ripple where they're pressed, widgets' glass is a setting (`widgets.opacity`,
+`widgets.frost`), the whole launcher works with a keyboard or gamepad, and owl 13 grew the phone
+controls (`settings`, `dnd`, `torch(level)`, `android.sim`, `android.network`, notification
+actions, replies and snoozes). Upstream also made home faster and fixed a crash measuring a tile
+on a page the pager had set aside, stopped a store update from overwriting an edited widget, and
+brought a tap on a terminal's prompt line back to the soft keyboard.
+
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)):
+
+- **The screen lock moved from owl 13 to owl 14.** Upstream filled 13 with its own controls, so a
+  file this fork wrote for the lock says `meta { owl: 14 }` now. Nothing else about it changed.
+- `terminal.opacity` still sets foot's own background alpha, and the tile's glass is what shows
+  through when it is 1, as for every other widget.
+- The `Browser` node at owl 11, the 12-column grid and the terminal's ⌨ button come through the
+  sync unchanged.
+
+## 0.12.2 (versionCode 23) – 2026-10-25
+
+- A store update no longer throws away changes made to a widget, app or face:
+  settings' update leaves an edited one out and lists it as edited, and its store
+  page says updating replaces the changes, as "update anyway" (a Play review).
+- Home no longer crashes measuring or updating a tile on a page the pager had set
+  aside ("measure/Apply is called on deactivated node", Play, 0.12.1).
+- Animated Canvases draw about twice as fast.
+- AGENTS.md and CLAUDE.md in the Linux home folder link the launcher's source.
+
+## 0.12.1 (versionCode 22) – 2026-10-24
+
+- Owl apps, panels, faces and screens ripple where they're pressed; a widget's tile
+  on home and the key bar don't.
+- Home's bar on a pinned owl app offers edit and share, as the drawer does (#197),
+  and an app in a folder gets home's bar on a long press.
+- A tap on a terminal's prompt line brings the soft keyboard back (#100). Pressing
+  Home on home with nothing open goes back to page 1 (#201).
+- Faster and lighter: home has its widgets in about half the time after start and
+  shows complete rather than filling in; pages either side are made ahead; animated
+  widgets, terminal tiles and Linux app windows draw at most 60 frames a second, and
+  a terminal tile stops drawing while home is out of sight; the drawer's app list,
+  owl apps' icons and the media source work off the main thread.
+- Linux setup stops with an error naming the kernel fix on custom ROM kernels where
+  it hung at "Initializing pacman keyring" (#105), and setup failing at once (too
+  little space) no longer crashes the launcher.
+- Fixes: Shift on a hardware keyboard with FlorisBoard in terminals and Linux windows;
+  the home terminal tile stuck on its red file name after a relaunch; the first home
+  after onboarding opened on page 2 on short screens; the today tile labelled cached
+  forecast days wrong after midnight; android.battery said "on battery" when plugged
+  in but not charging; system updates printed "Directory not empty" removing an old
+  agent version (#196).
+
+## 0.12.0 (versionCode 21) – 2026-10-23
+
+- controls.owl, a control center for swiping down on home: the phone's switches,
+  brightness, volume and where it plays, Do Not Disturb and the torch with their
+  levels, what's playing, the next alarm and the notifications (reply, act, snooze,
+  swipe away). Pick it in settings › gestures. Owl 13 adds what it uses:
+  `settings(...)`, `dnd(...)` with `dndAllows`, `torch(level)`, the radios and more
+  in `android.modes`, `android.sim`, `android.network`, `android.volume`'s output,
+  notification actions, replies and snoozing, `drag` and `onDragEnd`.
+- Widgets' glass is a setting: an opacity slider and frosted glass in Style
+  (widgets.opacity, widgets.frost), terminal widgets included; the drawer and panels
+  set how much they cover home. Owl 13's `tileOpacity` and `tileFrost` let a face or
+  a widget's own cards match.
+- Keyboards and gamepads reach the whole launcher: arrows or the D-pad move between
+  tiles, recent apps, the bar, the drawer, panels, settings and what takes taps in a
+  widget, with an accent ring; Enter opens, holding it or Menu long-presses, Esc or B
+  goes back. Super+D opens the drawer, Super+T a terminal, Super+Down the swipe-down
+  panel.
+- Codex runs commands again (its sandbox failed on every command under proot).
+  Agent updates delete the old versions and npm's cache, which left every upgraded
+  agent installed twice.
+- The store takes widgets, faces and apps up to 1 MB; an installed app opens from
+  its store page; store cards decode their previews at the size they're drawn.
+- Fixes: the mic crashed with some voice assistants (ChatGPT's) as the phone's
+  speech recognizer; store previews were blank on Android 10 and 11; very large
+  widget images ran out of memory; a widget too big for a share link crashed the
+  share screen (it's shared by QR code now); a frost that comes out NaN crashed the
+  launcher; the first key on setup could change the theme.
+
 ## 0.11.0-z (versionCode 21) – 2026-10-22
 
 Omalauncher Z on upstream 0.11.0 (versionCode 20) and its main: the terminal key bar is an owl

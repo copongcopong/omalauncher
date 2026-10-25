@@ -20,6 +20,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,10 +107,16 @@ fun SettingsScreen(
             )
         UpdatesBox(runtime, installed)
         if (installed) SetupUpdates(runtime)
+        // The local network row goes once it's granted: keys on it go on to the next.
+        val next = remember { FocusRequester() }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(rows, key = { it.first }) { (title, subtitle, onClick) ->
                 Row(
-                    Modifier.card(onClick = onClick),
+                    when (title) {
+                        "local network" -> Modifier.passesKeys(next)
+                        "android settings" -> Modifier.focusRequester(next)
+                        else -> Modifier
+                    }.card(onClick = onClick),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
@@ -138,7 +146,7 @@ private fun SetupUpdates(runtime: Runtime) {
                 Modifier.weight(1f),
                 style = Mono.copy(color = if (failed != null) Palette.red else Palette.accent),
             )
-            if (failed != null) BracketAction("retry", Palette.accent, runtime::retryUpdates)
+            if (failed != null) BracketAction("retry", Palette.accent, onClick = runtime::retryUpdates)
         }
         JobLog(state)
     }
@@ -164,9 +172,11 @@ private fun UpdatesBox(
         markets.forEach { it.refreshIfStale() }
     }
     val linuxPending = linux && (updates.pending?.count ?: 0) > 0
-    val ready = markets.flatMap { m -> m.updates.map { m to it } }
+    val pending = markets.flatMap { m -> m.updates.map { m to it } }
+    // Edited ones are left to the store, which says their changes would go.
+    val (held, ready) = pending.partition { (m, e) -> m.edited(e) }
     val busy = updates.job is JobState.Working || updates.checking || engine.updating || markets.any { it.loading }
-    val widgets = ready.isNotEmpty() || engine.updating || engine.updateError != null
+    val widgets = pending.isNotEmpty() || engine.updating || engine.updateError != null
     if (!linux && !widgets) return
     Column(
         Modifier.padding(bottom = 8.dp).card(),
@@ -192,7 +202,7 @@ private fun UpdatesBox(
         }
         if (linux) LinuxUpdatesRows(runtime)
         if (linux && widgets) BasicText("widgets", Modifier.padding(top = 8.dp), style = Mono.copy(fontSize = TextSize.Item))
-        if (widgets) WidgetUpdatesRows(engine, markets, ready)
+        if (widgets) WidgetUpdatesRows(engine, markets, ready, held)
     }
 }
 
@@ -218,24 +228,32 @@ private fun LinuxUpdatesRows(runtime: Runtime) {
     JobLog(job)
 }
 
-/** Store updates for installed widgets and apps, from the catalogs (reloaded when an hour old); "update" installs the [ready] ones. */
+/**
+ * Store updates for installed widgets and apps, from the catalogs (reloaded when an hour old); "update" installs the
+ * [ready] ones. [held] ones were edited, so they're only listed.
+ */
 @Composable
 private fun WidgetUpdatesRows(
     engine: WidgetEngine,
     markets: List<Market>,
     ready: List<Pair<Market, CatalogEntry>>,
+    held: List<Pair<Market, CatalogEntry>>,
 ) {
     val checking = markets.any { it.loading }
     val lines =
         when {
             engine.updating -> listOf("updating…")
             checking -> listOf("checking…")
-            ready.isNotEmpty() -> ready.map { (m, e) -> "${e.name} ${m.installedVersion(e)?.version} → ${e.version}" }
+            ready.isNotEmpty() || held.isNotEmpty() -> ready.map { (m, e) -> "${e.name} ${m.installedVersion(e)?.version} → ${e.version}" }
             markets.any { it.error != null } -> listOf("couldn't reach the store")
             markets.any { it.refreshedAt == 0L } -> listOf("not checked yet")
             else -> listOf("up to date · checked ${ago(markets.minOf { it.refreshedAt })}")
         }
     UpdateLines(lines, ready.isNotEmpty() && !engine.updating && !checking, engine::updateAll)
+    if (!engine.updating && !checking && held.isNotEmpty()) {
+        val names = held.joinToString { (m, e) -> "${e.name} ${m.installedVersion(e)?.version} → ${e.version}" }
+        BasicText("edited, so not updated here: $names · updating one in the store replaces your changes", style = Mono.copy(color = Palette.muted, fontSize = TextSize.Small))
+    }
     engine.updateError?.let { BasicText(it, style = Mono.copy(color = Palette.red, fontSize = TextSize.Small), maxLines = 3) }
 }
 
@@ -255,7 +273,7 @@ private fun UpdateLines(
         Column(Modifier.weight(1f).padding(top = 4.dp)) {
             for (line in shown) BasicText(line, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        if (ready) BracketAction("update", Palette.accent, onUpdate)
+        if (ready) BracketAction("update", Palette.accent, onClick = onUpdate)
     }
 }
 

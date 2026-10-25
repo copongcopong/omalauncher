@@ -1,6 +1,9 @@
 package dev.omalauncher.widgets
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BitmapRegionDecoder
+import android.graphics.Rect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -12,7 +15,7 @@ import dev.omalauncher.ui.decodeImageIcon
 import dev.omalauncher.ui.decodeSvgIcon
 import dev.omalauncher.upgrade.Versioned
 import dev.omalauncher.upgrade.mapEntries
-import dev.omalauncher.upgrade.writeAtomically
+import dev.omalauncher.upgrade.strings
 import dev.omalauncher.widgets.lang.OwlKind
 import dev.omalauncher.widgets.market.Catalog
 import dev.omalauncher.widgets.market.CatalogEntry
@@ -57,6 +60,8 @@ class Market(
         val version: String,
         val commands: List<String>,
         val requires: Map<String, List<String>>,
+        /** The installed file's SHA-256, to tell it from one the user edited; null in records kept before it was. */
+        val sha256: String? = null,
     )
 
     var entries by mutableStateOf<List<CatalogEntry>>(emptyList())
@@ -114,6 +119,24 @@ class Market(
     /** Installed ones with an update, from the last loaded catalog. */
     val updates get() = entries.filter { hasUpdate(it) }
 
+    /** Whether each installed file was edited, by its name, for the size and time it was checked at. */
+    private val editedFiles = HashMap<String, Pair<Pair<Long, Long>, Boolean>>()
+
+    /**
+     * Changed since it was installed, by the user or their agent, so an update would throw their changes away. One
+     * installed before installs were recorded with their hash may have been: it counts as edited.
+     */
+    fun edited(e: CatalogEntry): Boolean {
+        val i = installedVersion(e) ?: return false
+        val sha = i.sha256 ?: return true
+        val file = File(engine.dir, i.file)
+        val stamp = file.length() to file.lastModified()
+        editedFiles[i.file]?.takeIf { it.first == stamp }?.let { return it.second }
+        val edited = runCatching { Review.sha256(file.readBytes()) != sha }.getOrDefault(true)
+        editedFiles[i.file] = stamp to edited
+        return edited
+    }
+
     /** An update runs different commands or needs other packages than what the user approved. */
     fun changedSinceApproval(e: CatalogEntry) = installedVersion(e)?.let { it.commands != e.commands || it.requires != e.requires } == true
 
@@ -137,7 +160,7 @@ class Market(
                 engine.installDependenciesWhenLoaded(name)
                 File(engine.dir, name).writeBytes(bytes)
             }
-            installed[e.id] = Installed(e.id, name, e.version, e.commands, e.requires)
+            installed[e.id] = Installed(e.id, name, e.version, e.commands, e.requires, e.sha256)
             save()
             return null
         } catch (x: Exception) {
@@ -157,17 +180,41 @@ class Market(
     suspend fun image(path: String): ImageBitmap? {
         previews.decoded(path)?.let { return it }
         return withContext(Dispatchers.IO) {
-            val bytes =
-                if (previews.wasFetched(path)) {
-                    previews.fetched(path)
-                } else {
-                    runCatching { httpGet(BASE + path) }.getOrNull().also { previews.fetched(path, it) }
-                }
-            bytes
+            bytes(path)
                 ?.let { runCatching { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }.getOrNull() }
                 ?.also { previews.decoded(path, it) }
         }
     }
+
+    /**
+     * [e]'s preview for a grid card, no bigger than the card draws it: at most [width] px wide and [height] px high, and
+     * for a whole screen (an app or a face) only its top, [top] of its width high. The full image is a phone screen of up
+     * to 10 MB decoded; a dozen of those filled the cache, so scrolling decoded and uploaded them again and again.
+     */
+    suspend fun thumbnail(
+        e: CatalogEntry,
+        theme: String?,
+        width: Int,
+        height: Int,
+        top: Float?,
+    ): ImageBitmap? {
+        val path = e.previewFor(theme) ?: return null
+        val key = "$path#$width:$height:$top"
+        previews.decoded(key)?.let { return it }
+        return withContext(Dispatchers.IO) {
+            bytes(path)
+                ?.let { runCatching { decodeThumbnail(it, width, height, top)?.asImageBitmap() }.getOrNull() }
+                ?.also { previews.decoded(key, it) }
+        }
+    }
+
+    /** The fetched file at [path], fetched once; null when it can't be. */
+    private fun bytes(path: String): ByteArray? =
+        if (previews.wasFetched(path)) {
+            previews.fetched(path)
+        } else {
+            runCatching { httpGet(BASE + path) }.getOrNull().also { previews.fetched(path, it) }
+        }
 
     /**
      * [e]'s icon at [size] px square, as the drawer draws it: an SVG with `currentColor` in [accent], an image as it is;
@@ -200,7 +247,7 @@ class Market(
     fun load() {
         if (loaded) return
         loaded = true
-        val data = Versioned.read(record.takeIf { it.exists() }?.readText(), VERSION) as? JSONObject ?: return
+        val data = Versioned.readFile(record, VERSION) ?: return
         installed.putAll(
             data.mapEntries { id, f ->
                 Installed(
@@ -209,12 +256,11 @@ class Market(
                     version = f.getString("version"),
                     commands = f.optJSONArray("commands")?.strings().orEmpty(),
                     requires = f.optJSONObject("requires")?.let { r -> r.keys().asSequence().associateWith { r.optJSONArray(it)?.strings().orEmpty() } }.orEmpty(),
+                    sha256 = f.optString("sha256").ifEmpty { null },
                 )
             },
         )
     }
-
-    private fun JSONArray.strings() = (0 until length()).map { getString(it) }
 
     private fun save() {
         val data = JSONObject()
@@ -225,10 +271,37 @@ class Market(
                     .put("file", i.file)
                     .put("version", i.version)
                     .put("commands", JSONArray(i.commands))
-                    .put("requires", JSONObject(i.requires.mapValues { JSONArray(it.value) } as Map<*, *>)),
+                    .put("requires", JSONObject(i.requires.mapValues { JSONArray(it.value) } as Map<*, *>))
+                    .apply { i.sha256?.let { put("sha256", it) } },
             )
         }
-        runCatching { writeAtomically(record, Versioned.write(VERSION, data).toByteArray()) }
+        runCatching { Versioned.writeFile(record, VERSION, data) }
+    }
+}
+
+/** See [Market.thumbnail]: decodes only the part that shows, subsampled, then scales it to fit; never up. */
+private fun decodeThumbnail(
+    bytes: ByteArray,
+    width: Int,
+    height: Int,
+    top: Float?,
+): Bitmap? {
+    // The form without isShareable is API 31+; this one works from 29 (it's ignored either way).
+    @Suppress("DEPRECATION")
+    val decoder = BitmapRegionDecoder.newInstance(bytes, 0, bytes.size, false)
+    try {
+        val w = decoder.width
+        val h = top?.let { minOf(decoder.height, (w * it).toInt().coerceAtLeast(1)) } ?: decoder.height
+        val scale = minOf(1f, width.toFloat() / w, if (top == null) height.toFloat() / h else 1f)
+        val opts = BitmapFactory.Options().apply { inSampleSize = 1 }
+        while (w / (opts.inSampleSize * 2) >= w * scale) opts.inSampleSize *= 2
+        val region = decoder.decodeRegion(Rect(0, 0, w, h), opts) ?: return null
+        val tw = (w * scale).toInt().coerceAtLeast(1)
+        val th = (h * scale).toInt().coerceAtLeast(1)
+        if (region.width == tw && region.height == th) return region
+        return Bitmap.createScaledBitmap(region, tw, th, true).also { if (it !== region) region.recycle() }
+    } finally {
+        decoder.recycle()
     }
 }
 

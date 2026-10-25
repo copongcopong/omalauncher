@@ -3,11 +3,11 @@
 Part of the widget docs: README.md, one folder up, comes first, and paths here are from the widgets folder.
 
 A widget that wants a drag has to fight the pager for it: one page turn is a sideways drag
-anywhere on home. `lock(true)` holds home still until it is released (owl 13, this fork's):
+anywhere on home. `lock(true)` holds home still until it is released (owl 14, this fork's):
 
 ```owl
 widget "sketch" {
-  meta { owl: 13 }
+  meta { owl: 14 }
   state editing = false
   Column {
     Row {
