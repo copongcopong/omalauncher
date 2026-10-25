@@ -4,7 +4,7 @@ widget "sketch" {
   size: 6x3
   minSize: 4x2
 
-  meta { owl: 13; description: "A pad to draw on: tap draw, and the home screen holds still so a stroke can't turn the page. Tap done to let it go."; version: "1.0"; license: "MIT"; category: "fun" }
+  meta { owl: 14; description: "A pad to draw on: tap draw, and the home screen holds still so a stroke can't turn the page. Tap done to let it go."; version: "1.0"; license: "MIT"; category: "fun" }
 
   // The lock follows this mode: while drawing, home's swipes, its long presses and the prompt bar wait.
   state drawing = false

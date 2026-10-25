@@ -69,7 +69,7 @@ the WebView's own IME connection.
 
 ## Screen lock
 
-A widget holds home still with `lock(true)` (owl 13), and a Browser page holds it by itself
+A widget holds home still with `lock(true)` (owl 14), and a Browser page holds it by itself
 while it has the tile. The holds live in `ui/TerminalTiles.kt` as a set of owners: a widget
 instance, or the page handle, one entry each, so two widgets locking are both honoured and one
 letting go cannot free the screen the other holds. Home reads it in four places. The pager's
