@@ -1941,7 +1941,7 @@ class LangTest {
         assertTrue(lockError("Button { text: \"x\"; onTap: lock(\"false\") }").contains("lock takes true or false, not a text"))
         assertTrue(lockError("Button { text: \"x\"; onTap: lock(1) }").contains("lock takes true or false, not a number"))
         // A computed value is the widget's business: a source's bool passes, and so does null.
-        assertTrue(lockWidget("Button { text: \"x\"; onTap: lock(editing) }").level == 14)
+        assertTrue(lockWidget("Button { text: \"x\"; onTap: lock(editing) }").level == 16)
         // A widget that never calls lock is as it was: no lock is no version to ask for.
         assertEquals(1, Compiler.compile("widget {\n Column {\n Button { text: \"x\"; onTap: refresh() }\n Text { text: \"y\" } }\n}").level)
         assertEquals(14, Compiler.compile("widget {\n meta { owl: 14 }\n Button { text: \"x\" }\n}").level)
