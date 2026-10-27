@@ -1,5 +1,6 @@
 package dev.omalauncher.widgets.lang
 
+import dev.omalauncher.widgets.market.Review
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -632,6 +633,16 @@ class LangTest {
         Compiler.compile("widget {\n meta { owl: 10 }\n component C(gapsOut) { Box { padding: gapsOut } }\n C { gapsOut: 2 } }")
     }
 
+    @Test fun tileGlassFollowsTheLauncherStyle() {
+        val style =
+            object : Host by TestHost(0) {
+                override fun tile(name: String): Value = mapOf("tileOpacity" to Num(0.5), "tileFrost" to Num(24.0))[name] ?: Null
+            }
+        val p = Compiler.compile("face \"f\" {\n meta { owl: 13 }\n Text { text: \"${'$'}{tileOpacity} ${'$'}{tileFrost}\" } }")
+        assertEquals("0.5 24", (p.root.single() as WNode.Element).props["text"]!!(Env.root(style)).text())
+        assertTrue(compileError("widget {\n meta { owl: 12 }\n Box { frost: tileFrost } }").contains("tileFrost needs owl 13"))
+    }
+
     @Test fun requiresDeclaresPackagesPerManager() {
         val p = Compiler.compile("widget {\n  requires { pacman: [\"jq\", \"curl\"] }\n  requires { pacman: \"jq\" }\n  Text { text: \"x\" }\n}")
         assertEquals(mapOf("pacman" to listOf("jq", "curl")), p.requires)
@@ -885,6 +896,20 @@ class LangTest {
         assertTrue(compileError("widget {\n source c = file(\"/x\")\n Text { text: c } }").contains("file needs owl 4"))
     }
 
+    @Test fun androidNetwork() {
+        val p =
+            Compiler.compile(
+                "widget {\n meta { owl: 13 }\n source n = android.network every 2s\n state down = 0\n" +
+                    " on n { if old != null && value.rx >= old.rx { down = (value.rx - old.rx) / (value.uptime - old.uptime) } }\n" +
+                    " Text { text: fmtBytes(down) + \"/s\" } }",
+            )
+        val n = p.globals.first() as Global.Source
+        assertEquals("android.network", n.kind)
+        assertEquals(2.0, n.every, 0.0)
+        assertTrue(!p.needsLinux)
+        assertTrue(compileError("widget {\n meta { owl: 12 }\n source n = android.network\n Text { text: 1 } }").contains("android.network needs owl 13"))
+    }
+
     @Test fun androidAlarmModesAndPhoneActions() {
         val p = Compiler.compile("widget {\n meta { owl: 7 }\n source a = android.alarm\n source m = android.modes\n Text { text: a.time; onTap: { torch(\"toggle\"); torch(!m.torch); share(\"hi\"); haptic() } } }")
         assertEquals(listOf("android.alarm", "android.modes"), p.globals.map { (it as Global.Source).kind })
@@ -1003,6 +1028,27 @@ class LangTest {
         Compiler.compile("panel {\n meta { owl: 11 }\n state query = 1\n Text { text: query } }")
     }
 
+    @Test fun aPanelSaysHowMuchItCoversHome() {
+        assertNull(Compiler.compile("panel {\n meta { owl: 11 }\n Text { text: 1 } }").opacity)
+        assertNotNull(Compiler.compile("panel {\n meta { owl: 13 }\n opacity: 0.9\n Text { text: 1 } }").opacity)
+        // Worked out as it shows, like the rest of the panel.
+        assertNotNull(Compiler.compile("panel {\n meta { owl: 13 }\n state dim = true\n opacity: dim ? 0.8 : 1\n Text { text: 1 } }").opacity)
+        assertTrue(compileError("panel {\n meta { owl: 12 }\n opacity: 0.9\n Text { text: 1 } }").contains("needs owl 13"))
+        for (bad in listOf("1.5", "-0.1", "\"half\"")) {
+            assertTrue(compileError("panel {\n meta { owl: 13 }\n opacity: $bad\n Text { text: 1 } }").contains("from 0 (home shows through) to 1"))
+        }
+        assertTrue(compileError("widget {\n meta { owl: 13 }\n opacity: 0.9\n Text { text: 1 } }").isNotEmpty())
+    }
+
+    @Test fun aPanelCanKeepTheKeyboardDown() {
+        assertTrue(Compiler.compile("panel {\n meta { owl: 11 }\n Text { text: 1 } }").keyboard)
+        assertFalse(Compiler.compile("panel {\n meta { owl: 15 }\n keyboard: false\n Text { text: 1 } }").keyboard)
+        assertTrue(Compiler.compile("panel {\n meta { owl: 15 }\n keyboard: true\n Text { text: 1 } }").keyboard)
+        assertTrue(compileError("panel {\n meta { owl: 14 }\n keyboard: false\n Text { text: 1 } }").contains("needs owl 15"))
+        assertTrue(compileError("panel {\n meta { owl: 15 }\n state k = false\n keyboard: k\n Text { text: 1 } }").contains("keyboard is true or false"))
+        assertTrue(compileError("widget {\n meta { owl: 15 }\n keyboard: false\n Text { text: 1 } }").isNotEmpty())
+    }
+
     @Test fun extraKeysAreAFileOfTheirOwn() {
         val p =
             Compiler.compile(
@@ -1106,8 +1152,22 @@ class LangTest {
     @Test fun appsWithoutAStatusBarStepAroundTheCamera() {
         Compiler.compile("app {\n meta { owl: 12 }\n statusBar: false\n Column { padding: [12, screenTop, 12, 0]\n Text { text: 1 } } }")
         assertTrue(compileError("app {\n meta { owl: 11 }\n statusBar: false\n Spacer { height: screenTop } }").contains("needs owl 12"))
-        assertTrue(compileError("face {\n meta { owl: 12 }\n Spacer { height: screenTop } }").contains("screenTop is for apps"))
         assertTrue(compileError("widget {\n meta { owl: 12 }\n Text { text: 1 }\n screen { Text { text: screenTop } } }").contains("screenTop is for apps"))
+    }
+
+    @Test fun edgeFacesDrawUnderTheStatusBar() {
+        val face = Compiler.compile("face {\n meta { owl: 14 }\n edge: true\n Column { padding: [12, screenTop, 12, 0]\n Text { text: 1 } } }")
+        assertTrue(face.edge)
+        assertFalse(Compiler.compile("face {\n meta { owl: 13 }\n Text { text: 1 } }").edge)
+        assertTrue(compileError("face {\n meta { owl: 13 }\n edge: true\n Text { text: 1 } }").contains("needs owl 14"))
+        assertTrue(compileError("face {\n meta { owl: 14 }\n state e = true\n edge: e\n Text { text: 1 } }").contains("edge is true or false"))
+        assertTrue(compileError("face {\n meta { owl: 14 }\n Text { text: 1 }\n screen { Text { text: screenTop } } }").contains("screenTop is for apps"))
+        Compiler.compile("face {\n meta { owl: 14 }\n edge: true\n Column { padding: [screenLeft, 0, screenRight, 0]\n Text { text: 1 } } }")
+        // Without edge a face starts below the status bar and beside a cutout, so there's nothing for them to measure.
+        assertTrue(compileError("face {\n meta { owl: 14 }\n Spacer { width: screenLeft } }").contains("screenLeft is for faces with edge"))
+        assertTrue(compileError("face {\n meta { owl: 14 }\n Spacer { height: screenTop } }").contains("screenTop is for apps"))
+        assertTrue(compileError("face {\n meta { owl: 14 }\n edge: false\n Spacer { height: screenTop } }").contains("screenTop is for apps"))
+        assertTrue(compileError("app {\n meta { owl: 14 }\n Spacer { width: screenRight } }").contains("screenRight is for faces"))
     }
 
     @Test fun longPressIsForPagesAppsAndScreens() {
@@ -1252,6 +1312,69 @@ class LangTest {
         // The words themselves, and a level in percent for volume, compile.
         Compiler.compile("widget {\n meta { owl: 7 }\n Text { text: 1; onTap: { media(\"next\"); volume(\"50\"); volume(\"mute\"); torch(\"on\"); notification(\"dismiss\", \"k\") } } }")
         assertTrue(compileError("widget {\n Text { text: 1; onTap: volume(50) } }").contains("volume needs owl 4"))
+    }
+
+    /** Owl 13's phone controls: Android's panels, the other volume streams, and clearing, pressing and replying to notifications. */
+    @Test fun phoneControlsOfOwl13() {
+        val p =
+            Compiler.compile(
+                "widget {\n meta { owl: 13 }\n source n = android.notifications\n Text { text: 1; onTap: { settings(\"wifi\"); settings(\"output\"); volume(30, \"ring\"); notification(\"clear\"); " +
+                    "notification(\"action\", n.items[0].key, 0); notification(\"reply\", n.items[0].key, \"on my way\") } } }",
+            )
+        assertTrue(p.commands.contains("reply to notifications as you: on my way"))
+        assertTrue(p.commands.contains("press the buttons on notifications"))
+        val risks = Review.risks(p.commands)
+        assertTrue(risks.any { it.contains("sends messages as you") })
+        assertTrue(risks.any { it.contains("presses buttons on other apps' notifications") })
+        // Built while it runs, the text is what the reviewer can't see.
+        val built = Compiler.compile("widget {\n meta { owl: 13 }\n state t = \"\"\n Input { onSubmit: notification(\"reply\", \"k\", value) } }")
+        assertTrue(built.commands.contains("reply to notifications as you: text built from widget values"))
+        // Each is owl 13, even on actions that are older.
+        for (call in listOf("settings(\"wifi\")", "volume(30, \"ring\")", "notification(\"clear\")", "notification(\"reply\", \"k\", \"hi\")")) {
+            compileError("widget {\n meta { owl: 12 }\n Text { text: 1; onTap: $call } }").let { assertTrue(it, it.contains("needs owl 13")) }
+        }
+        // A word not written out, with three values, is a word from owl 13 too.
+        compileError("widget {\n meta { owl: 12 }\n state w = \"action\"\n Text { text: 1; onTap: notification(w, \"k\", 0) } }").let { assertTrue(it, it.contains("needs owl 13")) }
+        // Each word takes its own number of values.
+        compileError("widget {\n meta { owl: 13 }\n Text { text: 1; onTap: notification(\"clear\", \"k\") } }").let { assertTrue(it, it.contains("notification(\"clear\")")) }
+        compileError("widget {\n meta { owl: 13 }\n Text { text: 1; onTap: notification(\"reply\", \"k\") } }").let { assertTrue(it, it.contains("notification(\"reply\", key, text)")) }
+        compileError("widget {\n meta { owl: 13 }\n Text { text: 1; onTap: notification(\"open\") } }").let { assertTrue(it, it.contains("notification(\"open\", key)")) }
+        assertTrue(compileError("widget {\n meta { owl: 13 }\n Text { text: 1; onTap: settings(\"hotspot\") } }").contains("settings takes"))
+        assertTrue(compileError("widget {\n meta { owl: 13 }\n Text { text: 1; onTap: volume(30, \"call\") } }").contains("volume's stream is"))
+    }
+
+    /** drag: picks the one direction onDrag follows, and onDragEnd says how fast the finger let go (owl 13). */
+    @Test fun dragsAlongOneDirection() {
+        Compiler.compile("widget {\n meta { owl: 13 }\n state x = 0\n Box { offset: [x, 0]; drag: horizontal; onDrag: x = x + dx; onDragEnd: { if abs(vx) > 1000 { x = 0 } } } }")
+        compileError("widget {\n meta { owl: 12 }\n state x = 0\n Box { drag: horizontal; onDrag: x = x + dx } }").let { assertTrue(it, it.contains("drag needs owl 13")) }
+        compileError("widget {\n meta { owl: 13 }\n state x = 0\n Box { drag: sideways; onDrag: x = x + dx } }").let { assertTrue(it, it.contains("drag is horizontal or vertical")) }
+        compileError("widget {\n meta { owl: 13 }\n Box { drag: vertical } }").let { assertTrue(it, it.contains("add onDrag")) }
+        compileError("widget {\n meta { owl: 13 }\n state v = 0\n Box { onDragEnd: v = vx } }").let { assertTrue(it, it.contains("onDragEnd runs when an onDrag drag ends")) }
+        compileError("widget {\n meta { owl: 13 }\n component C() { Box { } }\n C { drag: horizontal } }").let { assertTrue(it, it.contains("drag goes on the node inside C")) }
+    }
+
+    /** ripple: false turns off the press shown on a node that takes taps (owl 14). */
+    @Test fun rippleOff() {
+        Compiler.compile("widget {\n meta { owl: 14 }\n state n = 0\n Box { ripple: false; onTap: n = n + 1 } }")
+        compileError("widget {\n meta { owl: 13 }\n state n = 0\n Box { ripple: false; onTap: n = n + 1 } }").let { assertTrue(it, it.contains("ripple needs owl 14")) }
+        compileError("widget {\n meta { owl: 14 }\n Box { ripple: false } }").let { assertTrue(it, it.contains("add onTap")) }
+        compileError("widget {\n meta { owl: 14 }\n component C() { Box { } }\n C { ripple: false } }").let { assertTrue(it, it.contains("ripple goes on the node inside C")) }
+    }
+
+    /** The SIM, Do Not Disturb switched, notifications snoozed, and offsets that ease back (owl 13). */
+    @Test fun simDndSnoozeAndSpringBack() {
+        Compiler.compile(
+            "widget {\n meta { owl: 13 }\n source s = android.sim\n state x = 0\n" +
+                " Box { offset: [x, 0]; animate offset: spring(0.8, 400); drag: horizontal; onDrag: x = x + dx; onDragEnd: x = 0\n" +
+                "  Text { text: s.carrier ?? \"no sim\"; onTap: { dnd(\"toggle\"); dnd(true); dnd(\"alarms\"); dnd(\"priority\"); dnd(\"none\"); dnd(\"all\"); torch(40); torch(\"60\"); notification(\"snoozeAll\", 3600); notification(\"snooze\", \"k\", 600); notification(\"unsnooze\", \"k\"); notification(\"unsnoozeAll\") } } } }",
+        )
+        for (old in listOf("source s = android.sim\n Text { text: 1 }", "Text { text: 1; onTap: dnd(\"on\") }", "Text { text: 1; onTap: notification(\"snoozeAll\", 60) }", "Text { text: 1; onTap: notification(\"snooze\", \"k\", 60) }", "Text { text: 1; onTap: notification(\"unsnoozeAll\") }", "Box { offset: [1, 0]; animate offset: spring() }", "Text { text: 1; onTap: torch(40) }")) {
+            compileError("widget {\n meta { owl: 12 }\n $old }").let { assertTrue(it, it.contains("needs owl 13")) }
+        }
+        assertTrue(compileError("widget {\n meta { owl: 13 }\n Text { text: 1; onTap: dnd(\"silence\") } }").contains("dnd takes"))
+        // A forgotten length is caught, not a snooze that silently does nothing.
+        compileError("widget {\n meta { owl: 13 }\n Text { text: 1; onTap: notification(\"snooze\", \"k\") } }").let { assertTrue(it, it.contains("notification(\"snooze\", key, seconds)")) }
+        compileError("widget {\n meta { owl: 13 }\n Text { text: 1; onTap: notification(\"snoozeAll\") } }").let { assertTrue(it, it.contains("notification(\"snoozeAll\", seconds)")) }
     }
 
     @Test fun sliderAndInput() {
@@ -1790,16 +1913,16 @@ class LangTest {
         assertTrue(browserError("Browser { url: \"https://a.test/\"; onTap: web(\"back\", 2) }").contains("web takes 1-1 values"))
     }
 
-    private fun lockWidget(body: String) = Compiler.compile("widget {\n meta { owl: 13 }\n state editing = false\n $body\n}")
+    private fun lockWidget(body: String) = Compiler.compile("widget {\n meta { owl: 16 }\n state editing = false\n $body\n}")
 
     private fun lockError(body: String) = compileError("widget {\n meta { owl: 11 }\n state editing = false\n $body\n}")
 
     @Test fun lockHoldsTheHomeScreenStill() {
-        assertTrue(compileError("widget {\n state editing = false\n Button { text: \"x\"; onTap: lock(editing) }\n}").contains("lock needs owl 13: add meta { owl: 13 }"))
-        assertTrue(compileError("widget {\n meta { owl: 11 }\n Button { text: \"x\"; onTap: lock(true) }\n}").contains("lock needs owl 13"))
+        assertTrue(compileError("widget {\n state editing = false\n Button { text: \"x\"; onTap: lock(editing) }\n}").contains("lock needs owl 16: add meta { owl: 16 }"))
+        assertTrue(compileError("widget {\n meta { owl: 11 }\n Button { text: \"x\"; onTap: lock(true) }\n}").contains("lock needs owl 16"))
         // Declared, it's an action like any other: one value, handed to the host as it is.
         val p = lockWidget("Column {\n Button { text: \"x\"; onTap: lock(true) }\n Text { text: \"y\" } }")
-        assertEquals(13, p.level)
+        assertEquals(16, p.level)
         val host = TestHost(p)
         val button = (p.root.single() as WNode.Element).children.first() as WNode.Element
         button.handlers["onTap"]!!.run(Env.root(host), emptyList())
@@ -1818,9 +1941,9 @@ class LangTest {
         assertTrue(lockError("Button { text: \"x\"; onTap: lock(\"false\") }").contains("lock takes true or false, not a text"))
         assertTrue(lockError("Button { text: \"x\"; onTap: lock(1) }").contains("lock takes true or false, not a number"))
         // A computed value is the widget's business: a source's bool passes, and so does null.
-        assertTrue(lockWidget("Button { text: \"x\"; onTap: lock(editing) }").level == 13)
+        assertTrue(lockWidget("Button { text: \"x\"; onTap: lock(editing) }").level == 16)
         // A widget that never calls lock is as it was: no lock is no version to ask for.
         assertEquals(1, Compiler.compile("widget {\n Column {\n Button { text: \"x\"; onTap: refresh() }\n Text { text: \"y\" } }\n}").level)
-        assertEquals(13, Compiler.compile("widget {\n meta { owl: 13 }\n Button { text: \"x\" }\n}").level)
+        assertEquals(14, Compiler.compile("widget {\n meta { owl: 14 }\n Button { text: \"x\" }\n}").level)
     }
 }

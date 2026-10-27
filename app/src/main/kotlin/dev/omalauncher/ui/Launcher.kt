@@ -36,6 +36,9 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.FilterQuality
@@ -69,12 +72,14 @@ fun LauncherRoot(
 ) {
     state.bindScope()
     val ready = runtime.launcherReady
-    // With our live wallpaper active the window is transparent and Android draws the wallpaper behind it.
-    val showOwnBackground = !ready || !runtime.themes.liveWallpaperActive
+    // With our live wallpaper active the window is transparent and Android draws the wallpaper behind it. Home draws its
+    // own over the whole window, so the color under it would only be drawn over.
+    val showOwnBackground = !ready || !runtime.themes.liveWallpaperActive && runtime.themes.wallpaper == null
     Box(
         Modifier
             .fillMaxSize()
-            .then(if (showOwnBackground) Modifier.background(Palette.background) else Modifier),
+            .then(if (showOwnBackground) Modifier.background(Palette.background) else Modifier)
+            .keysRoot(),
     ) {
         if (ready) DesktopScreen(runtime, state) else SetupScreen(runtime)
     }
@@ -98,8 +103,8 @@ private fun DesktopScreen(
 
     if (!runtime.themes.liveWallpaperActive) {
         runtime.themes.wallpaper?.let { bmp ->
-            // Read while drawing, so swiping pages only redraws this.
-            Canvas(Modifier.fillMaxSize()) {
+            // Read while drawing, and in its own layer, so swiping pages only redraws this.
+            Canvas(Modifier.fillMaxSize().graphicsLayer()) {
                 val src = wallpaperCrop(bmp.width, bmp.height, size.width.toInt(), size.height.toInt(), state.wallpaperOffset)
                 drawImage(
                     bmp,
@@ -176,7 +181,7 @@ private fun DesktopScreen(
     LaunchedEffect(handlers) { runtime.widgets.appHandlers = handlers }
 
     // The drawer is a panel: the one picked for swiping up, drawer.owl, or the stock one, whichever runs first.
-    val drawer = runtime.upPanel()
+    val drawer = runtime.widgets.drawerPanel()
     // Panels live while they show, so their sources keep up; a panel's close() slides it away.
     val shownPanels by remember(state, drawer) {
         derivedStateOf { setOfNotNull(drawer?.takeIf { state.drawer.value > 0f }, state.pulled?.takeIf { state.pull.value > 0f }) }
@@ -184,19 +189,22 @@ private fun DesktopScreen(
     LaunchedEffect(shownPanels) { runtime.widgets.shownPanels = shownPanels }
     LaunchedEffect(state) {
         runtime.widgets.panelCloses.collect { name ->
-            if (name == state.pulled) state.closePull() else if (name == runtime.upPanel()) state.close()
+            if (name == state.pulled) state.closePull() else if (name == runtime.widgets.drawerPanel()) state.close()
         }
     }
 
     // A widget or a focused page holds the home screen still: the bar, the strip and the rail keep drawing but open nothing.
     val locked = runtime.terminals.locked
     if (panelShown) {
-        // Near-opaque like stock drawers: home widgets bleeding through made icons hard to read.
+        // As much as the drawer's own opacity says.
+        val opacity = drawer?.let { runtime.widgets.panelInstance(it)?.second?.panelOpacity() } ?: 0.97f
         Box(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer { alpha = state.drawer.value.coerceAtMost(1f) }
-                .background(Palette.background.copy(alpha = 0.97f))
+                .background(Palette.background.copy(alpha = opacity))
+                // A tap on it closes the drawer; keys move between the drawer's apps, not to it.
+                .focusProperties { canFocus = false }
                 .clickable { state.close() }
                 .drawerSwipe(state),
         )
@@ -226,7 +234,8 @@ private fun DesktopScreen(
                 // Long-pressing an app opens its menu: the keyboard goes then, once, and stays down.
                 val release = remember(state) { { state.promptRequest = PromptRequest.Release } }
                 if (panelShown && drawer != null) {
-                    CompositionLocalProvider(LocalMenuOpened provides release) { UpPanel(runtime, state, drawer, slide) }
+                    // An arrow with nothing focused, as after a tap in it, starts in the drawer.
+                    CompositionLocalProvider(LocalMenuOpened provides release) { UpPanel(runtime, state, drawer, slide.holdsKeys(enters = false, traps = false)) }
                 }
             }
             // Hidden while a tile types: it would sit on the keyboard, over the tile. They slide with the tile pages,
@@ -235,7 +244,15 @@ private fun DesktopScreen(
                 Column(Modifier.graphicsLayer { if (!panelShown) translationX = state.barShift() * size.width }) {
                     // Home only: the open app list has everything.
                     // Swiping up from either does what it does on home, as from the dock on stock launchers.
-                    if (LauncherStyle.recentApps && !panelShown) RecentStrip(runtime, handlers, Modifier.homeSwipe(runtime, state, enabled = !locked).lockedTaps(locked))
+                    // Keys go between it and home's tiles both ways, which Compose's search doesn't find (see PromptBar).
+                    if (LauncherStyle.recentApps && !panelShown) {
+                        RecentStrip(
+                            runtime,
+                            handlers,
+                            Modifier.homeSwipe(runtime, state, enabled = !locked).lockedTaps(locked).focusRequester(state.stripEntry).focusGroup(),
+                            home = state.homeEntry,
+                        )
+                    }
                     // Insets itself by the grid gap, so it lines up with the tiles and the gap still takes taps.
                     PromptBar(runtime, state, modifier = Modifier.homeSwipe(runtime, state, enabled = !locked).lockedTaps(locked))
                 }

@@ -21,8 +21,8 @@ android {
         applicationId = "dev.omalauncher.fold"
         minSdk = 29
         targetSdk = 37
-        versionCode = 21
-        versionName = "0.11.0-z"
+        versionCode = 25
+        versionName = "0.13.0-z"
         ndk { abiFilters += "arm64-v8a" }
     }
 

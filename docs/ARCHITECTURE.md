@@ -26,7 +26,8 @@ touches it: `files/omarchy` is `~/.local/share/omarchy` and `files/widgets` is
   mapping, per-surface pixel stores, and compositing them into a window's
   `ANativeWindow`
 - `wayland/`: the Wayland server in Kotlin (wl_compositor, wl_shm,
-  wl_subcompositor, wl_seat, wl_output, xdg_wm_base, xdg-decoration) and
+  wl_subcompositor, wl_seat, wl_output, xdg_wm_base, xdg-decoration, and
+  text-input-v3 for where a client's text cursor is) and
   `WindowRenderer`, which draws one window into its activity's SurfaceView
   (or, for a widget's `Terminal`, into a TextureView in the tile)
 - `linux/`: proot, the rootfs setup and its update steps, pacman, coding
@@ -68,7 +69,7 @@ the WebView's own IME connection.
 
 ## Screen lock
 
-A widget holds home still with `lock(true)` (owl 13), and a Browser page holds it by itself
+A widget holds home still with `lock(true)` (owl 14), and a Browser page holds it by itself
 while it has the tile. The holds live in `ui/TerminalTiles.kt` as a set of owners: a widget
 instance, or the page handle, one entry each, so two widgets locking are both honoured and one
 letting go cannot free the screen the other holds. Home reads it in four places. The pager's

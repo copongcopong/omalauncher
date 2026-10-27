@@ -1,6 +1,7 @@
 package dev.omalauncher.widgets.lang
 
 import java.util.Base64
+import kotlin.reflect.KMutableProperty0
 
 /**
  * Checks a parsed widget and compiles it: names resolve to slots, expressions
@@ -24,7 +25,7 @@ class Compiler private constructor(
          * instead of failing on what they don't know. Bump it with every
          * addition a widget could depend on: nodes, properties, builtins.
          */
-        const val LEVEL = 13
+        const val LEVEL = 16
         private const val MAX_ASSET_BYTES = 2 shl 20
 
         /** Pages as far out as a file can ask for; past Int's range, the pages either side of them would wrap. */
@@ -106,26 +107,24 @@ class Compiler private constructor(
     /** Each secret's servers, as `https://host:port`: it's kept only while the file sends it to these. */
     private val secretHosts = HashMap<String, MutableSet<String>>()
 
-    private fun <T> withSecrets(f: () -> T): T {
-        val was = secretOk
-        secretOk = true
+    /** Compiles [f] with [flag] set, as it was again after. */
+    private inline fun <T> setting(
+        flag: KMutableProperty0<Boolean>,
+        f: () -> T,
+    ): T {
+        val was = flag.get()
+        flag.set(true)
         try {
             return f()
         } finally {
-            secretOk = was
+            flag.set(was)
         }
     }
 
+    private fun <T> withSecrets(f: () -> T): T = setting(::secretOk, f)
+
     /** Compiles [f], part of a request's URL, where a secret may go as `enc(token)`. */
-    private fun <T> inRequestUrl(f: () -> T): T {
-        val was = inUrl
-        inUrl = true
-        try {
-            return f()
-        } finally {
-            inUrl = was
-        }
-    }
+    private fun <T> inRequestUrl(f: () -> T): T = setting(::inUrl, f)
 
     /**
      * Whether text put together now waits for each value in it: a URL, a command or an image's src with a value still
@@ -134,15 +133,7 @@ class Compiler private constructor(
     private var wholeOnly = false
 
     /** Compiles [f], what a request asks for, with [wholeOnly] set. */
-    private fun <T> whole(f: () -> T): T {
-        val was = wholeOnly
-        wholeOnly = true
-        try {
-            return f()
-        } finally {
-            wholeOnly = was
-        }
-    }
+    private fun <T> whole(f: () -> T): T = setting(::wholeOnly, f)
 
     /** Compiles [f] with secrets readable, but not sent: `token == null` only says whether it's set. */
     private fun <T> checking(f: () -> T): T {
@@ -247,6 +238,9 @@ class Compiler private constructor(
     /** A face: it runs under the navigation bar, so its nodes may read `screenInset`. Known from the file's first word, so its lets and components see it too. */
     private val isFace = ast.kind == OwlKind.Face
 
+    /** A face with `edge: true`, which runs under the status bar and a cutout and may read how much they cover. Known up front, like [isFace]. */
+    private val edgeFace = isFace && ast.body.props.any { p -> p.name == "edge" && ((p.value as? Expr.Lit)?.value as? Bool)?.v == true }
+
     /** Where a handler calls screen() or close(), which need a screen { } block. */
     private var screenAction: Int? = null
 
@@ -271,15 +265,7 @@ class Compiler private constructor(
         if (v > (needs?.first ?: 1)) needs = Triple(v, feature, pos)
     }
 
-    private fun <T> chancy(f: () -> T): T {
-        val was = chance
-        chance = true
-        try {
-            return f()
-        } finally {
-            chance = was
-        }
-    }
+    private fun <T> chancy(f: () -> T): T = setting(::chance, f)
 
     private fun fail(
         msg: String,
@@ -363,6 +349,12 @@ class Compiler private constructor(
         val background = props["background"]?.let { if (gradient(it.value)) since(GRADIENT_BACKGROUND, it.pos); ex(it.value, root) }
         // Whether the status bar stays over a face, read as it changes: a face can hide it for a game and bring it back.
         val statusBar = props["statusBar"]?.let { ex(it.value, root) }
+        // Drawn under the status bar and a camera cutout: fixed in the file, since the whole face moves when it changes.
+        val edge =
+            props["edge"]?.let { p ->
+                since(FACE_EDGE, p.pos)
+                ((p.value as? Expr.Lit)?.value as? Bool)?.v ?: fail("edge is true or false, not an expression", p.pos)
+            } ?: false
         checkLevel(level)
 
         return Program(
@@ -370,8 +362,8 @@ class Compiler private constructor(
             meta = meta,
             level = level,
             size = props["size"]?.let { cells(it) },
-            isFace = isFace,
             statusBar = statusBar,
+            edge = edge,
             kind = ast.kind,
             minSize = props["minSize"]?.let { cells(it) } ?: (1 to 1),
             // A face goes left of page 1 by default: 0, and -1, -2, ... further left. A tile never does.
@@ -500,7 +492,9 @@ class Compiler private constructor(
         triggers: List<Trigger>,
     ): Program {
         since(PANEL_FILE, 0)
-        body.props.firstOrNull { it.name != "enter" }?.let { fail("a panel only takes enter (what the prompt bar says Enter does); the launcher frames it, and gesture settings pick which swipe opens it", it.pos) }
+        body.props.firstOrNull { it.name != "enter" && it.name != "opacity" && it.name != "keyboard" }?.let {
+            fail("a panel only takes enter (what the prompt bar says Enter does), opacity (how much it covers home) and keyboard (whether the keyboard comes up as it opens); the launcher frames it, and gesture settings pick which swipe opens it", it.pos)
+        }
         body.handlers.firstOrNull { it.name != "onSubmit" && it.name != "onKey" }?.let {
             fail("handlers go on the nodes inside a panel; only onSubmit (Enter in the prompt bar) and onKey (its arrow and Tab keys) go at its top", it.pos)
         }
@@ -515,6 +509,20 @@ class Compiler private constructor(
         val onKey = body.handlers.firstOrNull { it.name == "onKey" }?.let { since("onKey", it.pos); handler(it, root) }
         // Before the level check, which counts what it uses.
         val enter = body.props.firstOrNull { it.name == "enter" }?.let { ex(it.value, root) }
+        val opacity =
+            body.props.firstOrNull { it.name == "opacity" }?.let {
+                since(PANEL_OPACITY, it.pos)
+                val e = ex(it.value, root)
+                val n = e.const?.let { c -> (c as? Num)?.v ?: Double.NaN }
+                if (n != null && n !in 0.0..1.0) fail("a panel's opacity is from 0 (home shows through) to 1 (solid)", it.pos)
+                e
+            }
+        // Whether opening the drawer raises the keyboard, so search is ready; fixed in the file, like a face's edge.
+        val keyboard =
+            body.props.firstOrNull { it.name == "keyboard" }?.let {
+                since(PANEL_KEYBOARD, it.pos)
+                ((it.value as? Expr.Lit)?.value as? Bool)?.v ?: fail("keyboard is true or false, not an expression", it.pos)
+            } ?: true
         checkLevel(level)
         return Program(
             name = ast.name ?: "panel",
@@ -525,6 +533,8 @@ class Compiler private constructor(
             onSubmit = onSubmit,
             onKey = onKey,
             enter = enter,
+            opacity = opacity,
+            keyboard = keyboard,
             triggers = triggers,
             commands = commands.toList(),
             secretHosts = secretHosts.mapValues { it.value.sorted() },
@@ -990,7 +1000,7 @@ class Compiler private constructor(
         return WNode.Draw(
             c.name,
             c.args.map { a -> ex(a, scope) },
-            c.named.associate { (k, v) -> k to (enumOrNull(k, v, scope) ?: ex(v, scope)) },
+            c.named.associate { (k, v) -> k to (enumOrNull(k, v) ?: ex(v, scope)) },
             it.body?.let { b ->
                 noProps(b, c.name)
                 items(b.items, scope, Children.DRAW)
@@ -1020,6 +1030,16 @@ class Compiler private constructor(
             if (p.name == "reverse" && body.props.none { it.name == "lazy" }) fail("reverse lists a lazy ${n.type} from its end: add lazy: true", p.pos)
             if (p.name == "background" && gradient(p.value)) since(GRADIENT_BACKGROUND, p.pos)
             if (p.name == "frost") since("frost", p.pos)
+            if (p.name == "drag") {
+                since("drag", p.pos)
+                val axes = ENUMS.getValue("drag")
+                if ((p.value as? Expr.Name)?.name !in axes) fail("drag is ${axes.joinToString(" or ")}", p.pos)
+                if (body.handlers.none { it.name == "onDrag" }) fail("drag picks the direction onDrag follows: add onDrag", p.pos)
+            }
+            if (p.name == "ripple") {
+                since("ripple", p.pos)
+                if (body.handlers.none { it.name == "onTap" || it.name == "onLongPress" }) fail("ripple is the press shown on a node that takes taps: add onTap", p.pos)
+            }
             if (p.name == "repeats") {
                 since("repeats", p.pos)
                 if (body.handlers.none { it.name == "onPress" }) fail("repeats runs onPress again while the finger stays down: add onPress", p.pos)
@@ -1032,6 +1052,7 @@ class Compiler private constructor(
             body.handlers.associate { h ->
                 if (h.name !in HANDLER_PARAMS) fail("unknown handler '${h.name}' (${HANDLER_PARAMS.keys.joinToString()})", h.pos)
                 if (h.name == "onKey") fail("onKey goes at the top of a panel, next to onSubmit", h.pos)
+                if (h.name == "onDragEnd" && body.handlers.none { it.name == "onDrag" }) fail("onDragEnd runs when an onDrag drag ends: add onDrag", h.pos)
                 HANDLER_KINDS[h.name]?.let { kinds -> if (n.type !in kinds) fail("${h.name} only works on ${kinds.joinToString(" and ")}", h.pos) }
                 if (h.name == "onLongPress" && inScreen == false && !isFace) {
                     fail("long-press on a tile belongs to the home screen, which lifts it to move and resize it; onLongPress works in faces, apps and a screen { }", h.pos)
@@ -1042,6 +1063,7 @@ class Compiler private constructor(
         val animations =
             body.animations.associate { a ->
                 if (a.name !in ANIMATABLE) fail("'${a.name}' can't animate (${ANIMATABLE.joinToString()})", a.pos)
+                if (a.name == "offset") since(ANIMATE_OFFSET, a.pos)
                 a.name to ex(a.value, scope)
             }
         since(n.type, n.pos)
@@ -1097,6 +1119,8 @@ class Compiler private constructor(
             }
         val wrapper = body.props.filter { it.name !in c.params }.associate { it.name to prop(it, scope) }
         body.props.firstOrNull { it.name == "frost" && it.name !in c.params }?.let { since("frost", it.pos) }
+        body.props.firstOrNull { it.name == "drag" && it.name !in c.params }?.let { fail("drag goes on the node inside ${n.type} that has onDrag", it.pos) }
+        body.props.firstOrNull { it.name == "ripple" && it.name !in c.params }?.let { fail("ripple goes on the node inside ${n.type} that has onTap", it.pos) }
         return WNode.Use(n.type, args, wrapper, c.body, n.pos)
     }
 
@@ -1112,7 +1136,6 @@ class Compiler private constructor(
     private fun enumOrNull(
         name: String,
         e: Expr,
-        scope: Scope,
     ): Ev? {
         val options = ENUMS[name] ?: return null
         // The word, even when a let, state, source or parameter has its name: `align: top` beside
@@ -1124,7 +1147,7 @@ class Compiler private constructor(
     private fun prop(
         p: Prop,
         scope: Scope,
-    ): Ev = enumOrNull(p.name, p.value, scope) ?: ex(p.value, scope)
+    ): Ev = enumOrNull(p.name, p.value) ?: ex(p.value, scope)
 
     private fun handler(
         h: Handler,
@@ -1248,8 +1271,27 @@ class Compiler private constructor(
                 ACTION_WORDS[call.name]?.let { w ->
                     val c = (args[0].const as? Str)?.v
                     if (c != null && c !in w.words && !(w.numbers && c.toDoubleOrNull() != null)) fail(w.message, call.pos)
+                    w.forms[c]?.let { (arity, usage) -> if (call.args.size !in arity) fail("it's $usage", call.pos) }
+                    // A word newer than its action, like notification("reply"), needs the level it came with.
+                    if ("${call.name}(\"$c\")" in SINCE) since("${call.name}(\"$c\")", call.pos)
                 }
                 since(call.name, call.pos)
+                // notification(...) with one value or three is a word from owl 13, even when the word isn't written out.
+                if (call.name == "notification" && call.args.size != 2) since("notification(\"action\")", call.pos)
+                // A written-out brightness; one from a value, like a Slider's, can't be told from on and off here.
+                if (call.name == "torch" && (args[0].const is Num || (args[0].const as? Str)?.v?.toDoubleOrNull() != null)) since(TORCH_LEVEL, call.pos)
+                if (call.name == "volume" && call.args.size == 2) {
+                    (args[1].const as? Str)?.v?.let { if (it !in VOLUME_STREAMS) fail("volume's stream is ${VOLUME_STREAMS.joinToString()}", call.args[1].pos) }
+                    since(VOLUME_STREAM, call.pos)
+                }
+                // Both act as the user in other apps: the reviewer sees which a widget does, and with what text.
+                if (call.name == "notification") {
+                    when ((args[0].const as? Str)?.v) {
+                        "reply" -> commands += "reply to notifications as you: " + ((args[2].const as? Str)?.v ?: "text built from widget values")
+                        "action" -> commands += "press the buttons on notifications"
+                        null -> if (call.args.size == 3) commands += "press the buttons on notifications, or reply to them as you with text built from widget values"
+                    }
+                }
                 if (call.name == "sound") webFile(call.args[0], scope, "sound")
                 if (call.name == "pressKey") {
                     (args[0].const as? Str)?.v?.let { if (KeyNames.combo(it) == null) fail(KeyNames.help, call.args[0].pos) }
@@ -1557,9 +1599,13 @@ class Compiler private constructor(
         if (e.name == "screenInset" && ast.kind != OwlKind.App && !(isFace && inScreen != true)) {
             fail("screenInset is for apps with edge: true and faces; a widget's screen ends above the navigation bar", e.pos)
         }
-        // Only an app runs up to the top edge, with statusBar: false; a face and a widget's screen stay clear of the cutout.
-        if (e.name == "screenTop" && ast.kind != OwlKind.App) {
-            fail("screenTop is for apps with statusBar: false; a face and a widget's screen start below the camera", e.pos)
+        // Only an app with statusBar: false and a face with edge: true run up to the top edge; a widget's screen stays clear of it.
+        if (e.name == "screenTop" && ast.kind != OwlKind.App && !(edgeFace && inScreen != true)) {
+            fail("screenTop is for apps with statusBar: false and faces with edge: true; anything else starts below the status bar", e.pos)
+        }
+        // Only a face with edge: true runs under a cutout or navigation bar at the side.
+        if ((e.name == "screenLeft" || e.name == "screenRight") && !(edgeFace && inScreen != true)) {
+            fail("${e.name} is for faces with edge: true, which run under a camera cutout or navigation bar at the side", e.pos)
         }
         // Not reserved: widgets that already declare `rows` or `cols` keep their own.
         if (e.name in TILE || e.name == LINUX) {

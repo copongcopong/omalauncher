@@ -1,6 +1,7 @@
 package dev.omalauncher.ui
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -17,6 +18,8 @@ import dev.omalauncher.widgets.Folder
 import dev.omalauncher.widgets.HomeItem
 import dev.omalauncher.widgets.Shortcut
 import dev.omalauncher.widgets.WidgetItem
+import dev.omalauncher.widgets.WidgetSpec
+import dev.omalauncher.widgets.app
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -57,6 +60,17 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -87,20 +101,29 @@ fun HomeScreen(
     // while they hold something, so it becomes a real page once used and a new empty one follows.
     // Left of page 1 the same, for faces: like a stock launcher's feed, but the user's own. An empty one waits left of
     // the leftmost, page 0 at first, then -1, -2, ... as they fill.
+    // home.empty-page-left and home.empty-page-right turn each off; the right one still comes while a tile is carried,
+    // to drop it on.
+    // Not the left one: adding a page before the one on screen would shift the pager under the finger.
     // Unfolded, tile pages show in pairs and a face across both halves: the pager counts slots (see slotsOf).
     val per = if (showsTwoPages(windowSize())) 2 else 1
     val pageNumbers =
-        engine.pages
-            .let { listOf(minOf(it.first(), FACE_PAGE + 1) - 1) + it }
-            .let { if (engine.itemsOn(it.last()).isEmpty()) it else it + (it.last() + 1) }
+        pagerPages(
+            engine.pages,
+            lastEmpty = engine.itemsOn(engine.pages.last()).isEmpty(),
+            emptyPageLeft = LauncherStyle.emptyPageLeft,
+            emptyPageRight = LauncherStyle.emptyPageRight || arrange.carry != null,
+        )
     // Only faces on screen, or the empty one waiting left of them: they get it whole, the bar's room too (see
     // LauncherState.faceShowing), and the status bar's while all of them say statusBar: false.
     fun faceOn(page: Int?) = page?.let { engine.layout.owner(engine.itemsOn(it)) as? WidgetItem }?.takeIf { it.isFace }
     fun full(page: Int?) = page != null && (isFacePage(page) || faceOn(page) != null)
-    val slots = slotsOf(pageNumbers, per, ::full)
+    // No pages until the widgets have loaded: pinned apps load first, and pages shown before them would fill in, then
+    // shift as the widgets' pages joined, with home turning to page 1 among them.
+    val slots = if (engine.loaded) slotsOf(pageNumbers, per, ::full) else emptyList()
     fun slotOf(page: Int) = slots.indexOfFirst { page in it }
     // Home opens on page 1, not left of it; on the first tile page, if a layout from before faces has none numbered 1.
-    val pager = rememberPagerState(initialPage = slotOf(pageNumbers.firstOrNull { it >= 1 } ?: 1).coerceAtLeast(0)) { slots.size }
+    // Made again once the widgets have loaded, so it starts on that page among all of them.
+    val pager = key(engine.loaded) { rememberPagerState(initialPage = slotOf(pageNumbers.firstOrNull { it >= 1 } ?: 1).coerceAtLeast(0)) { slots.size } }
     // A tile dropped on another page: show that page once the page list has caught up, by the list as it is then. The
     // list the request was made with could be one from before (a store add spilling onto page 2 showed a face). A swipe
     // meanwhile wins, and the request goes with it rather than firing later.
@@ -131,8 +154,13 @@ fun HomeScreen(
     }
     BackHandler(enabled = terminals.typing) { terminals.deactivate() }
     BackHandler(enabled = state.homeMenuOpen) { state.homeMenuOpen = false }
-    BackHandler(enabled = state.editing != null && !state.homeMenuOpen) { state.editing = null }
     BackHandler(enabled = arrange.folder != null && !state.homeMenuOpen) { arrange.folder = null }
+    // After the folder's, so back puts down an app selected in it before closing it.
+    BackHandler(enabled = state.editing != null && !state.homeMenuOpen) { state.editing = null }
+    // An app selected in a folder goes with it.
+    LaunchedEffect(arrange.folder) {
+        if (arrange.folder == null && engine.shortcuts.items.any { it.key == state.editing && it.folder != null }) state.editing = null
+    }
     LaunchedEffect(engine) {
         engine.launcherAction = { action ->
             when (action) {
@@ -212,6 +240,10 @@ fun HomeScreen(
     // Its shell exited, or the app lost focus: the soft keyboard goes too.
     val typing = terminals.active != null
     LaunchedEffect(typing) { if (!typing) terminals.keyboard?.hide() }
+    DisposableEffect(state) {
+        state.onHomeAgain = { if (arrange.folder != null) arrange.folder = null else state.requestedPage = 1 }
+        onDispose { state.onHomeAgain = {} }
+    }
     LaunchedEffect(state.requestedPage) {
         state.requestedPage?.let { slotOf(it).takeIf { i -> i >= 0 }?.let { i -> pager.animateScrollToPage(i) } }
         state.requestedPage = null
@@ -231,10 +263,10 @@ fun HomeScreen(
         engine.layout.remove(item.key)
     }
 
-    /** Opens the default agent on the widget's file; with no agent installed, the agents screen instead. */
-    fun edit(item: WidgetItem) {
+    /** Opens the default agent on the file; with no agent installed, the agents screen instead. */
+    fun edit(spec: WidgetSpec) {
         state.editing = null
-        state.withAgent(runtime, "Edit ${item.spec.name}") { editWidgetCommand(it, item.spec) }
+        state.withAgent(runtime, "Edit ${spec.name}") { editWidgetCommand(it, spec) }
     }
 
     // Overlays below are siblings of the pager inside this Box, so they never change the page's size.
@@ -261,6 +293,7 @@ fun HomeScreen(
     var origin by remember { mutableStateOf(Offset.Zero) }
     val extraKeys = terminals.active != null && extraKeysWanted()
     val side = homeSide()
+    val focusManager = LocalFocusManager.current
     val turned = homeTurned()
     val sideRoom = sideWidth()
     val barRoom = with(density) { state.barHeight.takeIf { it > 0 }?.toDp() ?: (PromptBarHeight + HomeGap + EdgeGap) }
@@ -306,8 +339,9 @@ fun HomeScreen(
             // nothing lifted under the status bar. A face typing is the whole screen: it isn't lifted and keeps drawing
             // under the status bar and down to the keyboard.
             .drawWithContent {
-                val keyboard = ime.getBottom(density)
-                if (!terminals.typing || keyboard == 0 || faceTyping) {
+                // Typing first: reading the keyboard's inset would draw this again on each frame it slides, typing or not.
+                val keyboard = if (!terminals.typing || faceTyping) 0 else ime.getBottom(density)
+                if (keyboard == 0) {
                     drawContent()
                 } else {
                     val keys = if (extraKeys) terminals.extraKeysHeight.takeIf { it > 0f } ?: ExtraKeysHeight.toPx() else 0f
@@ -344,7 +378,33 @@ fun HomeScreen(
             itemsOn = engine::itemsOn,
             layout = engine.layout,
             arrange = arrange,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    // Down out of the tiles stops at the recent apps first, which Compose's own search passes over.
+                    .focusProperties { onExit = { if (requestedFocusDirection == FocusDirection.Down) state.stripEntry.requestFocus() } }
+                    // In landscape there's nothing below for that search to find, so it never leaves: Down, or the arrow
+                    // toward the rail once there's no page left to turn to that way, goes to the recent apps (the bar's
+                    // rail without them) where the arrow finds nothing else.
+                    .then(
+                        if (side == null) {
+                            Modifier
+                        } else {
+                            Modifier.onKeyEvent { e ->
+                                val direction =
+                                    when (e.key) {
+                                        Key.DirectionDown -> FocusDirection.Down
+                                        Key.DirectionLeft -> FocusDirection.Left.takeIf { side == HomeSide.Left }
+                                        Key.DirectionRight -> FocusDirection.Right.takeIf { side == HomeSide.Right }
+                                        else -> null
+                                    } ?: return@onKeyEvent false
+                                e.type == KeyEventType.KeyDown && (focusManager.moveFocus(direction) || state.stripEntry.requestFocus())
+                            }
+                        },
+                    )
+                    .focusRequester(state.homeEntry)
+                    .focusGroup(),
             selected = state.editing,
             locked = terminals.locked,
             onSelect = { state.editing = it },
@@ -358,84 +418,29 @@ fun HomeScreen(
                 // Nothing until they're loaded, so the bar doesn't jump down as they arrive.
                 if (offered != null) Column {
                     if (menu != null && offered.isNotEmpty()) {
-                        MenuItems(emptyList(), { state.editing = null }, minWidth = 160.dp, itemPadding = 12.dp, fontSize = TextSize.Item) {
+                        MenuItems(emptyList(), { state.editing = null }, minWidth = 160.dp, itemPadding = 12.dp) {
                             ShortcutRows(offered, menu, { state.editing = null }, TextSize.Item, rule = false)
                         }
                         Spacer(Modifier.height(6.dp))
                     }
                     EditBar {
-                        if (item is WidgetItem) EditAction("edit") { edit(item) }
+                        // A widget's own file, or the owl app a pinned shortcut opens.
+                        val spec = if (item is WidgetItem) item.spec else (item as? Shortcut)?.owl?.let(engine.specs::app)
+                        if (spec != null) EditAction("edit") { edit(spec) }
                         // As a QR code or link, or (your own) to the store. An agent's tile is a terminal, not a widget to pass on.
-                        if (item is WidgetItem && !engine.isAgentWidget(item.spec)) {
+                        if (spec != null && !engine.isAgentWidget(spec)) {
                             EditAction("share") {
                                 state.editing = null
-                                state.sharing = item.spec
+                                state.sharing = spec
                             }
                         }
                         EditAction("remove", Palette.red) { remove(item) }
                     }
                 }
             },
-            render = { item, tile, highlighted ->
-                when (item) {
-                    is WidgetItem -> {
-                        // Whose terminal or page has the keyboard: the tile gives up what the keyboard covers once the lift is spent.
-                        val instance = engine.instance(item.spec)
-                        val typing = instance != null && (instance.owns(terminals.active) || instance.owns(terminals.browser) || terminals.field?.widget === instance)
-                        WidgetTile(
-                            spec = item.spec,
-                            instance = engine.instance(item.spec),
-                            // As shown: on its side in landscape. A face is the whole grid.
-                            cells = (if (item.isFace) engine.layout.grid else engine.layout.cell(item.key)?.let { it.w to it.h })?.let { (w, h) -> if (turned) h to w else w to h },
-                            // Accent like Hyprland's active border: only while one of its terminals has the keyboard. A face
-                            // has none, being the whole screen; its screenInset grows by what the keyboard covers instead.
-                            focused = highlighted || (typing && !item.isFace),
-                            keyboard = if (typing && item.isFace) terminals.cut else 0f,
-                            modifier =
-                                if (typing && item.isFace) {
-                                    tile.onGloballyPositioned { terminals.tile = it.boundsInWindow().translate(0f, terminals.lift) }
-                                } else if (typing) {
-                                    tile
-                                        .onGloballyPositioned { terminals.tile = it.boundsInWindow().translate(0f, terminals.lift) }
-                                        .padding(bottom = with(density) { terminals.cut.toDp() })
-                                } else {
-                                    tile
-                                },
-                            onTap = { engine.tap(item.spec) },
-                            needs = engine.missing[item.spec.file.name].orEmpty(),
-                            install = engine.installs[item.spec.file.name],
-                            onInstall = { engine.installDependencies(item.spec) },
-                            waitsForLinux = if (engine.waitsForLinux(item.spec)) linuxState else null,
-                            onInstallLinux = { state.show(SettingsPage.Linux) },
-                            onFix = { log -> state.withAgent(runtime, "Fix ${item.spec.name}") { fixDependenciesCommand(it, item.spec, log) } },
-                        )
-                    }
-                    is Shortcut ->
-                        ShortcutTile(
-                            shortcut = item,
-                            label = runtime.shortcutLabel(item),
-                            icon = runtime.shortcutIcon(item, LauncherStyle.monochromeIcons),
-                            focused = highlighted,
-                            modifier = tile,
-                            onTap = {
-                                // Opening an app from a folder closes the folder, like Android.
-                                arrange.folder = null
-                                runtime.open(item)
-                            },
-                            paused = runtime.androidApps.paused(item.profile),
-                            clone = runtime.androidApps.cloned(item.profile),
-                        )
-                    is Folder ->
-                        FolderTile(
-                            folder = item,
-                            icons = item.apps.take(4).map { runtime.shortcutIcon(it, LauncherStyle.monochromeIcons) },
-                            labels = item.apps.take(4).map { runtime.shortcutLabel(it) },
-                            focused = highlighted,
-                            modifier = tile,
-                            onTap = { arrange.folder = item.key },
-                        )
-                }
-            },
+            // A function of its own, which skips when its tile didn't change: a lambda's body here would run again for
+            // every tile each time home recomposes, as on each page turn.
+            render = { item, placed, selected -> HomeTile(item, placed, selected, runtime, state, arrange, turned, linuxState) },
             // The recent apps strip's room: kept while it's empty, so tiles don't reflow when it fills, and still
             // home's to swipe and long-press there until it does.
             room = if (LauncherStyle.recentApps && side == null) RecentStripHeight else 0.dp,
@@ -452,7 +457,13 @@ fun HomeScreen(
                     }
                 }
             },
-            onNoRoom = { item -> showPage = engine.moveToFreePage(item) },
+            // Home turns to where a tile the user just added went; a shipped one that doesn't fit, as on a short
+            // screen's first home, moves without taking home off page 1.
+            onNoRoom = { item ->
+                val turn = engine.placedOnPhone(item)
+                val page = engine.moveToFreePage(item)
+                if (turn) showPage = page
+            },
             onMove = { item, page ->
                 engine.moveToPage(item, page)
                 showPage = page
@@ -511,7 +522,7 @@ private fun FaceInvite(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            BasicText("a face of your own", style = Mono.copy(color = Palette.accent, fontSize = TextSize.Item))
+            BasicText("a face of your own", style = Mono.copy(color = Palette.accent))
             // The theme's own text color: muted is too faint on some themes' card.
             BasicText(
                 "This page is yours to fill with a face: a feed, a dashboard, a start page, a game. Say what you want and " +
@@ -520,11 +531,26 @@ private fun FaceInvite(
             )
             // Pulled left by the buttons' own padding, so the first bracket lines up with the text.
             Column(Modifier.offset(x = (-8).dp)) {
-                BracketAction("create with ${agent?.lowercase() ?: "an agent"}", Palette.accent, onCreate)
-                BracketAction("browse store", Palette.accent, onBrowse)
+                BracketAction("create with ${agent?.lowercase() ?: "an agent"}", Palette.accent, onClick = onCreate)
+                BracketAction("browse store", Palette.accent, onClick = onBrowse)
             }
         }
     }
+}
+
+/**
+ * Home's page numbers as the pager has them: [pages], with the empty page waiting left of the leftmost for a new face
+ * when [emptyPageLeft], and one after the last when [emptyPageRight], for tiles, unless that one is empty already
+ * ([lastEmpty]). Neither (both settings off, no tile carried) leaves only [pages], so home ends at its own pages.
+ */
+internal fun pagerPages(
+    pages: List<Int>,
+    lastEmpty: Boolean,
+    emptyPageLeft: Boolean,
+    emptyPageRight: Boolean,
+): List<Int> {
+    val withFace = if (emptyPageLeft) listOf(minOf(pages.first(), FACE_PAGE + 1) - 1) + pages else pages
+    return if (!emptyPageRight || lastEmpty) withFace else withFace + (withFace.last() + 1)
 }
 
 /**
@@ -576,5 +602,96 @@ internal fun barShift(
         // Coming from a face on the left: the bar comes in from the right with the tile page.
         !rightFull -> 1f - f
         else -> 1f
+    }
+}
+
+/** A tile on home: a widget, a pinned app or a folder, [selected] for editing, at [placed]. */
+@Composable
+private fun HomeTile(
+    item: HomeItem,
+    placed: Modifier,
+    selected: Boolean,
+    runtime: Runtime,
+    state: LauncherState,
+    arrange: Arrange,
+    /** As homeTurned(): cells are shown on their side. */
+    turned: Boolean,
+    linuxState: LinuxState,
+) {
+    val engine = runtime.widgets
+    val terminals = runtime.terminals
+    val density = LocalDensity.current
+    val open: () -> Unit =
+        when (item) {
+            is WidgetItem -> { -> engine.tap(item.spec) }
+            // Opening an app from a folder closes the folder, like Android.
+            is Shortcut -> { ->
+                arrange.folder = null
+                runtime.open(item)
+            }
+            is Folder -> { -> arrange.folder = item.key }
+        }
+    // Keys reach a tile as a finger does: Enter opens it, and Menu or holding Enter selects it, as a long press.
+    // What takes taps in a widget is inside it, Right away; Enter goes there too on one with no tap of its own.
+    // It shows as the tile's own focus.
+    var keyed by remember(item.key) { mutableStateOf(false) }
+    val inside = remember(item.key) { FocusRequester() }
+    val keyOpen: () -> Unit = if (item is WidgetItem && item.spec.program?.onTap == null) { { inside.requestFocus() } } else open
+    // Keys on a tile as it's removed, or as its page goes, go to the first tile of the page that shows.
+    val tile = placed.passesKeys(state.homeEntry).keyActivated(keyOpen, { state.editing = item.key }, inside) { keyed = it.hasFocus }
+    val highlighted = selected || keyed
+    when (item) {
+        is WidgetItem -> {
+            // Whose terminal has the keyboard: the tile gives up what the keyboard covers once the lift is spent.
+            val instance = engine.instance(item.spec)
+            val typing = instance != null && (instance.owns(terminals.active) || instance.owns(terminals.browser) || terminals.field?.widget === instance)
+            WidgetTile(
+                spec = item.spec,
+                instance = engine.instance(item.spec),
+                // As shown: on its side in landscape. A face is the whole grid.
+                cells = (if (item.isFace) engine.layout.grid else engine.layout.cell(item.key)?.let { it.w to it.h })?.let { (w, h) -> if (turned) h to w else w to h },
+                // Accent like Hyprland's active border: only while one of its terminals has the keyboard. A face
+                // has none, being the whole screen; its screenInset grows by what the keyboard covers instead.
+                focused = highlighted || (typing && !item.isFace),
+                keyboard = if (typing && item.isFace) terminals.cut else 0f,
+                modifier =
+                    if (typing && item.isFace) {
+                        tile.onGloballyPositioned { terminals.tile = it.boundsInWindow().translate(0f, terminals.lift) }
+                    } else if (typing) {
+                        tile
+                            .onGloballyPositioned { terminals.tile = it.boundsInWindow().translate(0f, terminals.lift) }
+                            .padding(bottom = with(density) { terminals.cut.toDp() })
+                    } else {
+                        tile
+                    },
+                onTap = open,
+                needs = engine.missing[item.spec.file.name].orEmpty(),
+                install = engine.installs[item.spec.file.name],
+                onInstall = { engine.installDependencies(item.spec) },
+                waitsForLinux = if (engine.waitsForLinux(item.spec)) linuxState else null,
+                onInstallLinux = { state.show(SettingsPage.Linux) },
+                onFix = { log -> state.withAgent(runtime, "Fix ${item.spec.name}") { fixDependenciesCommand(it, item.spec, log) } },
+            )
+        }
+        is Shortcut ->
+            ShortcutTile(
+                shortcut = item,
+                label = runtime.shortcutLabel(item),
+                icon = runtime.shortcutIcon(item, LauncherStyle.monochromeIcons),
+                focused = highlighted,
+                modifier = tile,
+                onTap = open,
+                paused = runtime.androidApps.paused(item.profile),
+                clone = runtime.androidApps.cloned(item.profile),
+            )
+        is Folder ->
+            FolderTile(
+                folder = item,
+                icons = item.apps.take(4).map { runtime.shortcutIcon(it, LauncherStyle.monochromeIcons) },
+                labels = item.apps.take(4).map { runtime.shortcutLabel(it) },
+                focused = highlighted,
+                modifier = tile,
+                onTap = open,
+            )
     }
 }

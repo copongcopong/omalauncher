@@ -119,12 +119,17 @@ jobs:
       - name: Notes
         run: |
           cat > "$RUNNER_TEMP/notes.md" <<'EOF'
-          Omalauncher Z, on upstream 0.11.0 (the terminal key bar as a widget file, owl 12's kept
-          secrets and key handling, the store and backup fixes) with this fork's changes:
+          Omalauncher Z, on upstream 0.13.0 (faces that reach the screen's edge and can come in
+          several pages, owl apps and panels that ripple, a keyboard and gamepad for the whole
+          launcher, owl 13's phone controls) with this fork's changes:
 
           - a Browser tile at owl 11: a web page in a tile, https only, script off unless `js: true`,
             with `examples/45-fav-sites.owl` putting a menu of favorite sites under one button
-          - `lock(true)` at owl 13: a widget holds home still, with a border and a chip that lets go
+          - `lock(true)` at owl 16: a widget holds home still, with a border and a chip that lets go.
+            It moved up twice, since upstream took 13, 14 and 15 while this fork held them
+          - a development browser apart from home: `browser-dev [url|port]` in Arch takes http on this
+            phone's loopback as well as https, in its own process, for working on a site with its
+            DevTools attached. Settings has a row for it too; docs/BROWSER-DEV.md
           - a 12-column home grid across a foldable's inner screen, so a widget tile can be full width
             (`home.columns` and `home.single-page` in Style, 12 and on as this fork's defaults)
           - the keyboard button at a window's bottom left

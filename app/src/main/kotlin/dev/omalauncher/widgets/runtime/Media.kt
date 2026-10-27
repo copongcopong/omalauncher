@@ -1,13 +1,16 @@
 package dev.omalauncher.widgets.runtime
 
 import android.app.ActivityOptions
+import android.app.Notification
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaController
+import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Build
@@ -18,6 +21,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.util.Log
 import dev.omalauncher.widgets.lang.Null
 import dev.omalauncher.widgets.lang.Num
 import dev.omalauncher.widgets.lang.Obj
@@ -33,6 +37,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -89,6 +94,11 @@ class Media(
 
     val granted get() = notifications.isNotificationListenerAccessGranted(component)
 
+    /** Asks Android to bind the listener again: access is granted, but it isn't bound yet after a start, or the phone let it go. */
+    fun reconnect() {
+        runCatching { NotificationListenerService.requestRebind(component) }.onFailure { Log.w("widgets", "rebind: ${it.message}") }
+    }
+
     /**
      * Where [value] runs: its binder calls and the art's parcel stay off the main thread, one at a time,
      * since it keeps the art and labels below.
@@ -105,15 +115,26 @@ class Media(
 
     fun art(src: String): Bitmap? = art?.takeIf { it.first == src }?.second
 
-    /** The session to show and control: the one playing, else the most recent. */
-    private fun controller(): MediaController? {
+    /** The app [value] shows, for Android's output switcher to move its sound; null without one. */
+    fun playingPackage(): String? = controller()?.packageName
+
+    /** The session widgets were last shown, which media(...) controls while it's still active. */
+    @Volatile
+    private var shown: MediaSession.Token? = null
+
+    /** The session to show and control: [prefer] while it's active, else the one playing, else the most recent. */
+    private fun controller(prefer: MediaSession.Token? = null): MediaController? {
         if (!granted) return null
         val all = runCatching { sessions.getActiveSessions(component) }.getOrNull().orEmpty()
-        return all.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING } ?: all.firstOrNull()
+        return prefer?.let { t -> all.firstOrNull { it.sessionToken == t } }
+            ?: all.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+            ?: all.firstOrNull()
     }
 
     fun value(): Value {
-        val c = controller() ?: return Obj(mapOf("available" to bool(granted), "playing" to bool(false)))
+        val c = controller()
+        shown = c?.sessionToken
+        if (c == null) return Obj(mapOf("available" to bool(granted), "playing" to bool(false)))
         val m = c.metadata
         val s = c.playbackState
         val playing = s?.state == PlaybackState.STATE_PLAYING
@@ -195,10 +216,13 @@ class Media(
                 current = next
                 next?.registerCallback(callback, main)
             }
+            // On the main thread: rebound on the worker, with the ticker, which uses current too.
             val changed =
                 MediaSessionManager.OnActiveSessionsChangedListener {
-                    rebind(controller())
-                    trySend(Unit)
+                    launch {
+                        rebind(controller())
+                        trySend(Unit)
+                    }
                 }
             var listening = false
 
@@ -232,7 +256,12 @@ class Media(
                 current?.unregisterCallback(callback)
                 if (listening) sessions.removeOnActiveSessionsChangedListener(changed)
             }
-        }.conflate().map { withContext(worker) { value() } }.distinctUntilChanged()
+        }
+            // Listing the sessions and asking for their state go through the system, every second while playing: on the worker, not the main thread.
+            .flowOn(worker)
+            .conflate()
+            .map { withContext(worker) { value() } }
+            .distinctUntilChanged()
 
     /** media("toggle"), "play", "pause", "next", "previous"; without access, opens the setting that grants it. */
     fun control(command: String) {
@@ -240,7 +269,8 @@ class Media(
             openAccessSettings()
             return
         }
-        val c = controller() ?: return
+        // The session the tile shows, even if another one started playing since it last updated.
+        val c = controller(shown) ?: return
         val t = c.transportControls
         val s = c.playbackState
         // A session left in an error state, or one that offers no play action, ignores play(): YouTube without
@@ -269,11 +299,34 @@ class Media(
 
     private val starting = setOf(PlaybackState.STATE_PLAYING, PlaybackState.STATE_BUFFERING, PlaybackState.STATE_CONNECTING, PlaybackState.STATE_SKIPPING_TO_NEXT, PlaybackState.STATE_SKIPPING_TO_PREVIOUS, PlaybackState.STATE_SKIPPING_TO_QUEUE_ITEM)
 
-    // send() throws CanceledException, which isn't a RuntimeException: the tap handler wouldn't catch it.
+    // The player's own screen first: the session's activity, else what tapping its media notification opens.
+    // A browser's session belongs to the browser, so its launch intent opens a tab, while these bring up the
+    // window that plays, a web app's included. The app's launch screen only when neither is there or works.
     private fun open(c: MediaController) {
-        c.sessionActivity?.let { runCatching { it.send(context, 0, null, null, null, null, allowLaunch()) } }
-            ?: context.packageManager.getLaunchIntentForPackage(c.packageName)?.let { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        if (send(c.sessionActivity) || send(notificationIntent(c))) return
+        context.packageManager.getLaunchIntentForPackage(c.packageName)?.let { runCatching { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
     }
+
+    // send() throws CanceledException, which isn't a RuntimeException: the tap handler wouldn't catch it.
+    // A canceled intent means the next one gets a go.
+    private fun send(intent: PendingIntent?) = intent != null && runCatching { intent.send(context, 0, null, null, null, null, allowLaunch()) }.isSuccess
+
+    /** The tap action of the media notification [c]'s session posted, matched by its session token. */
+    private fun notificationIntent(c: MediaController): PendingIntent? {
+        val posted = MediaListener.connected?.let { runCatching { it.activeNotifications }.getOrNull() } ?: return null
+        return posted.firstOrNull { sessionOf(it.notification) == c.sessionToken }?.notification?.contentIntent
+    }
+
+    // Another app's extras can fail to unparcel; such a notification just doesn't match.
+    private fun sessionOf(n: Notification): MediaSession.Token? =
+        runCatching {
+            if (Build.VERSION.SDK_INT >= 33) {
+                n.extras.getParcelable(Notification.EXTRA_MEDIA_SESSION, MediaSession.Token::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                n.extras.getParcelable<MediaSession.Token>(Notification.EXTRA_MEDIA_SESSION)
+            }
+        }.getOrNull()
 
     // Since Android 14 a PendingIntent only starts an activity from a backgrounded app (the player is cached
     // by now) when the sender lends it its own right to: the launcher, on screen, has to opt in or it's blocked.
