@@ -1,1 +1,0 @@
-Omalauncher Z on upstream 0.12.2: owl apps and panels ripple where you press them, widgets can be see-through or frosted glass (settings, style), the launcher works with a keyboard or gamepad, and a control center can take the swipe down. The screen lock is owl 14 now, since upstream took 13 for its phone controls, so a widget that locks the screen needs meta { owl: 14 }.

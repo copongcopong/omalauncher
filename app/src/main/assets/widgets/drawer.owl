@@ -55,6 +55,7 @@ panel "app drawer" {
 
   // How much the drawer covers home: near-opaque, as home's widgets showing through make the icons hard to read.
   opacity: 0.97
+  // keyboard: false (with owl: 15 in meta) leaves the keyboard down as the drawer opens, until the bar is tapped.
   enter: searching ? (chosen >= 0 ? "▸ open" : "⏎ ask") : ""
   // An empty bar's Enter does nothing, as on home.
   onSubmit: {

@@ -20,8 +20,8 @@ change. When a sync lands, re-read it against the new upstream and fix whatever 
 | | |
 |---|---|
 | package | `dev.omalauncher.fold` |
-| version name | `<upstream>-z`, e.g. `0.12.2-z` |
-| version code | one above upstream's, so it installs over an upstream build, e.g. `24` |
+| version name | `<upstream>-z`, e.g. `0.13.0-z` |
+| version code | one above upstream's, so it installs over an upstream build, e.g. `25` |
 | signing | release falls back to the debug key, which is what the phone's install has |
 | releases | tag `v<versionName>`, built by `.github/workflows/fork-release.yml` |
 
@@ -58,12 +58,19 @@ either works or is rejected cleanly. Numbers are global, so two features cannot 
 | 11 | shared | upstream's panels, `android.drawer`, `appAction`, `workApps`, `shortcuts`, lazy Columns and Grids, `Image.label`, `Text.minLines`, `chunk`, `rank`, `strongMatch`, app `statusBar`; the fork's `Browser` node and `web(...)` |
 | 12 | upstream | `screenTop`, how much of an app's top a camera cutout covers; `keybar "…" { }` files, `pressKey`, `typeText`, `latch`, `keybar.gaps-out` and `keybar.border-width` |
 | 13 | upstream | the phone's own controls: `settings`, `dnd`, `torch(level)`, `volume`'s stream, `notification("clear")`/`"action"`/`"reply"`/`"snooze"`/`"snoozeAll"`/`"unsnooze"`/`"unsnoozeAll"`, `drag` and `onDragEnd`, `android.network`, `android.sim`, a panel's `opacity`, `animate offset`, `tileOpacity` and `tileFrost` |
-| 14 | fork | `lock(true)` and `lock(false)` |
+| 14 | upstream | a face's `edge: true`, with `screenTop`, `screenLeft` and `screenRight` in a face; `ripple: false` |
+| 15 | upstream | a panel's `keyboard: false`, for a drawer that leaves the soft keyboard down |
+| 16 | fork | `lock(true)` and `lock(false)` |
 
 Level 13 was the fork's for one release (0.11.0-z) and is upstream's since 0.12.0, which took it
-for the control center's phone controls. The lock moved to 14 in the 0.12.2-z sync, which costs
-nothing: upstream used 14 for `ripple: false` and took it back before releasing. Any file written
-for the fork's lock before that carries `meta { owl: 13 }` and needs the number changed.
+for the control center's phone controls. The lock moved to 14 in the 0.12.2-z sync, which cost
+nothing: upstream used 14 for `ripple: false` and took it back before releasing. It moved again to
+16 in the 0.13.0-z release, because upstream shipped 14 for a face's edge and 15 for a panel's
+keyboard in the same release.
+
+Each move means a file written for the lock needs its `meta { owl: N }` raised: 13 for the first
+release, 14 for the second, 16 now. There was no way to keep 14, since an upstream launcher at 14
+accepts the level and then fails on `lock`, which is a worse message than a version error.
 
 Level 11 is deliberately shared. `Browser` shipped at 11 before upstream took 11 for panels, and
 moving it would break widgets already written for it, so the fork keeps it there. This

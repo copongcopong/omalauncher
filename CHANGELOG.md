@@ -4,24 +4,57 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
-## 0.12.2-z (versionCode 24) – 2026-10-25
+## 0.13.0-z (versionCode 25) – 2026-10-25
 
-Omalauncher Z on upstream 0.12.2 (versionCode 23) and its main: owl apps, panels, faces and
-screens ripple where they're pressed, widgets' glass is a setting (`widgets.opacity`,
-`widgets.frost`), the whole launcher works with a keyboard or gamepad, and owl 13 grew the phone
-controls (`settings`, `dnd`, `torch(level)`, `android.sim`, `android.network`, notification
-actions, replies and snoozes). Upstream also made home faster and fixed a crash measuring a tile
-on a page the pager had set aside, stopped a store update from overwriting an edited widget, and
-brought a tap on a terminal's prompt line back to the soft keyboard.
+Omalauncher Z on upstream 0.13.0 (versionCode 24) and its main: faces can draw to the screen's
+edge, store faces can come with several pages installed side by side, owl apps and panels ripple
+where they're pressed, widgets' glass is a setting (`widgets.opacity`, `widgets.frost`), the
+launcher works with a keyboard or gamepad, and a drawer can leave the keyboard down (`keyboard:
+false`, owl 15). Owl 13 filled in the phone's own controls (`settings`, `dnd`, `torch(level)`,
+`android.sim`, `android.network`, notification actions, replies and snoozes). Upstream also fixed
+a crash measuring a tile on a page the pager had set aside, stopped a store update from
+overwriting an edited widget, taught GTK apps to take their own title bar, shrank a Linux window
+too big for the screen, and made animated canvases draw about twice as fast.
+
+This release folds in 0.12.0 to 0.13.0: the fork published none of the 0.12.x releases, so their
+changes arrive here.
 
 Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)):
 
-- **The screen lock moved from owl 13 to owl 14.** Upstream filled 13 with its own controls, so a
-  file this fork wrote for the lock says `meta { owl: 14 }` now. Nothing else about it changed.
-- `terminal.opacity` still sets foot's own background alpha, and the tile's glass is what shows
-  through when it is 1, as for every other widget.
-- The `Browser` node at owl 11, the 12-column grid and the terminal's ⌨ button come through the
-  sync unchanged.
+- The screen lock moved from owl 14 to owl 16, because upstream took 13, 14 and 15 for its own
+  features. A file that locks the screen says `meta { owl: 16 }` now; nothing else about it
+  changed. This is the second move: 13 went first, then 14.
+- A development browser, apart from home: `browser-dev [url|port]` in Arch opens a window that
+  takes `http://` on this phone's loopback as well as https, in its own process with its own
+  WebView data directory, so an agent can attach to the page with the Chrome DevTools Protocol
+  without home's `Browser` tiles gaining a debug socket or an http hole. Settings has a row for
+  it, and it comes back to the page it was last on. `docs/BROWSER-DEV.md`.
+- The `Browser` node at owl 11, the 12-column grid, the terminal's ⌨ button and
+  `terminal.opacity` come through the sync unchanged.
+
+
+## Unreleased
+
+- Tapping a now-playing widget brings up the player's own screen, like a web app's
+  window when one installed from a browser plays, rather than a new browser tab.
+- A drawer can leave the keyboard down as it opens, for scrolling the apps rather
+  than searching them: owl 15's `keyboard: false` in `drawer.owl`. Tapping the
+  bar brings it up.
+
+## 0.13.0 (versionCode 24) – 2026-10-25
+
+- Faces can draw to the screen's edge: owl 14's `edge: true` runs a face under the
+  status bar, and in landscape under a camera cutout or navigation bar at the side;
+  `screenTop`, `screenLeft` and `screenRight` say how much those cover. Other faces
+  now keep clear of a navigation bar at the side, which they ran under.
+- A store face can have several pages, installed side by side. Each page stays
+  yours to remove; an update replaces only the pages still on home, and the face's
+  store page adds a removed one back. Publishing a face lets your agent add your
+  other faces as its pages.
+- Owl 14's `ripple: false` leaves out the ripple on a node that shows its press
+  itself.
+- Fixes: a face's bottom jumped after every reload or data update; the store's
+  widgets/faces/apps toggle stayed round with square corners.
 
 ## 0.12.2 (versionCode 23) – 2026-10-25
 

@@ -138,6 +138,8 @@ fun StyleScreen(
             Flag("icons", "monochrome", "colored", style, Style.MONOCHROME_ICONS)
             Flag("home apps", "boxed", "icon only", style, Style.APP_TILES)
             Flag("recent apps", "shown", "hidden", style, Style.RECENT_APPS)
+            Flag("empty page left", "shown", "hidden", style, Style.EMPTY_PAGE_LEFT)
+            Flag("empty page right", "shown", "hidden", style, Style.EMPTY_PAGE_RIGHT)
             CountOption("columns", Style.COLUMNS, style)
             Flag("pages", "one", "auto", style, Style.FORCE_SINGLE_PAGE)
             NumberOption("corners", Corners.entries.map { it.label to it.scale.toDouble() }, Style.CORNER_SCALE, style)

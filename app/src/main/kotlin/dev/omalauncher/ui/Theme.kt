@@ -132,6 +132,12 @@ object LauncherStyle {
     /** The strip of recently used apps above the bar on home. */
     val recentApps get() = style[Style.RECENT_APPS]
 
+    /** The empty page left of home's leftmost, for a new face. */
+    val emptyPageLeft get() = style[Style.EMPTY_PAGE_LEFT]
+
+    /** The empty page after home's last, always (true) or only while a tile is carried (false). */
+    val emptyPageRight get() = style[Style.EMPTY_PAGE_RIGHT]
+
     /** Forces one home page even on a screen [SideRail]'s auto-detect would otherwise split in two. */
     val forceSinglePage get() = style[Style.FORCE_SINGLE_PAGE]
 

@@ -26,7 +26,7 @@
 > - A `Browser` node (owl 11): a web page in a tile, drawn by Android's own WebView, so it needs
 >   no Linux. https only, script off unless `js: true`, two pages per widget, and a page that
 >   keeps its place across tab switches.
-> - A screen lock (owl 14): a widget holds home still while it is being used, so a drag stays
+> - A screen lock (owl 16): a widget holds home still while it is being used, so a drag stays
 >   its own. A border and a chip say so, and the chip's button always lets go.
 > - A development browser, apart from home: `browser-dev [url|port]` in the guest opens a window
 >   that takes `http://` on this phone's loopback as well as https, and that an agent can attach

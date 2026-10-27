@@ -900,7 +900,9 @@ private fun TiledPage(
         }
         if (isFacePage(page) && carried == null && items.isEmpty()) {
             feed(page)
-        } else if (items.none { it.key != carried }) {
+        } else if (items.none { it.key != carried } && (carried != null || LauncherStyle.emptyPageRight || page == 1)) {
+            // An empty page is the one after the last, or unfolded the blank half beside an odd last page, but for page 1
+            // of an empty home. With home.empty-page-right off, that half stays blank rather than inviting a new page.
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 BasicText(
                     when {

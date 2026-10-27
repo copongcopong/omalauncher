@@ -1,6 +1,6 @@
 # Screen lock
 
-Status: implemented, merged in #8. The lock is owl 14 since the 0.12.2-z sync: upstream filled 13, which this fork had taken for it.
+Status: implemented, merged in #8. The lock is owl 16 since the 0.13.0-z sync: upstream filled 13, 14 and 15 while the fork held 13, then 14.
 Target: `copongcopong/omalauncher`.
 
 Goal: let a widget hold the home screen still while it is being used, so a tap or a swipe
@@ -19,7 +19,7 @@ The lock is an action, `lock(true)` and `lock(false)`, called from a handler. A 
 node would tie it to one tile. An action lets a face decide when its own UI is in a mode that
 wants the screen held.
 
-A file that asks for the lock declares `meta { owl: 14 }`. Launchers older than that reject
+A file that asks for the lock declares `meta { owl: 16 }`. Launchers older than that reject
 the file rather than ignoring the call and turning pages anyway.
 
 Locking holds the pager, the swipe up and the long press for the whole screen, because they
@@ -38,7 +38,7 @@ it is always the way out.
 
 ```owl
 widget "notes" {
-  meta { owl: 14 }
+  meta { owl: 16 }
   state editing = false
   Column {
     Button { text: editing ? "done" : "draw"; onTap: { editing = !editing; lock(editing) } }
@@ -153,7 +153,7 @@ Home, in `app/src/main/kotlin/dev/omalauncher/ui/`:
 
 ## Tests
 
-`LangTest` covers the level gate (`lock(true)` without owl 14 fails with the level message),
+`LangTest` covers the level gate (`lock(true)` without owl 16 fails with the level message),
 the arity errors for no argument and for two, the refusal of a constant string or number, and
 a computed value reaching the host as `lock true` then `lock false`.
 

@@ -208,10 +208,11 @@ internal fun PromptBar(
     }
     // The panel and the bar open and close together: opening it (Super+D, a widget) focuses the bar, closing it lets go.
     LaunchedEffect(panelShown) {
-        // Opened to dictate, the keyboard stays down.
+        // Opened to dictate, the keyboard stays down. So it does for a drawer with keyboard: false, though the bar still
+        // takes focus, for a hardware keyboard to type into; focusing it can raise the soft one, so that's sent down again.
         if (panelShown && !speech.listening) {
             focus.requestFocus()
-            keyboard?.show()
+            if (runtime.widgets.drawerPanel()?.let { runtime.widgets.panelInstance(it) }?.second?.program?.keyboard != false) keyboard?.show() else keyboard?.hide()
         } else if (!panelShown && focused) {
             focusManager.clearFocus()
             keyboard?.hide()
