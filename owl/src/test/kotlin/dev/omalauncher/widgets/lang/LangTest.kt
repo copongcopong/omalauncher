@@ -1913,16 +1913,16 @@ class LangTest {
         assertTrue(browserError("Browser { url: \"https://a.test/\"; onTap: web(\"back\", 2) }").contains("web takes 1-1 values"))
     }
 
-    private fun lockWidget(body: String) = Compiler.compile("widget {\n meta { owl: 14 }\n state editing = false\n $body\n}")
+    private fun lockWidget(body: String) = Compiler.compile("widget {\n meta { owl: 16 }\n state editing = false\n $body\n}")
 
     private fun lockError(body: String) = compileError("widget {\n meta { owl: 11 }\n state editing = false\n $body\n}")
 
     @Test fun lockHoldsTheHomeScreenStill() {
-        assertTrue(compileError("widget {\n state editing = false\n Button { text: \"x\"; onTap: lock(editing) }\n}").contains("lock needs owl 14: add meta { owl: 14 }"))
-        assertTrue(compileError("widget {\n meta { owl: 11 }\n Button { text: \"x\"; onTap: lock(true) }\n}").contains("lock needs owl 14"))
+        assertTrue(compileError("widget {\n state editing = false\n Button { text: \"x\"; onTap: lock(editing) }\n}").contains("lock needs owl 16: add meta { owl: 16 }"))
+        assertTrue(compileError("widget {\n meta { owl: 11 }\n Button { text: \"x\"; onTap: lock(true) }\n}").contains("lock needs owl 16"))
         // Declared, it's an action like any other: one value, handed to the host as it is.
         val p = lockWidget("Column {\n Button { text: \"x\"; onTap: lock(true) }\n Text { text: \"y\" } }")
-        assertEquals(14, p.level)
+        assertEquals(16, p.level)
         val host = TestHost(p)
         val button = (p.root.single() as WNode.Element).children.first() as WNode.Element
         button.handlers["onTap"]!!.run(Env.root(host), emptyList())
