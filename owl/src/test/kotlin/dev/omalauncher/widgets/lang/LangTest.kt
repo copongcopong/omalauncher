@@ -2091,6 +2091,7 @@ class LangTest {
         // A widget that never calls lock is as it was: no lock is no version to ask for.
         assertEquals(1, Compiler.compile("widget {\n Column {\n Button { text: \"x\"; onTap: refresh() }\n Text { text: \"y\" } }\n}").level)
         assertEquals(14, Compiler.compile("widget {\n meta { owl: 14 }\n Button { text: \"x\" }\n}").level)
+    }
 
     /** A widget with strings, compiled for [language], showing [expr]. */
     private fun texts(
