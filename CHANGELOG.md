@@ -4,6 +4,116 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
+## 0.16.0-z (versionCode 28) – 2026-10-30
+
+Omalauncher Z on upstream 0.16.0 (versionCode 27) and its main: settings has a language, and
+the launcher's text comes in Indonesian, Spanish and Brazilian Portuguese, carried in string
+resources, with widgets' `strings { }` at owl 16 and `lang()` for the language picked. Owl 17
+adds a WebSocket client (`ws()`, `send()`, `on x each { }`), a `pin:` SHA-256 that trusts a LAN
+server's own certificate, and `onPull` for pulling a scrolling list down to refresh it. A Linux
+job's log keeps up with progress bars, holds 200 lines and opens whole when tapped, pacman
+installs bubblewrap again, the recent apps and the prompt bar frost over the wallpaper with the
+tiles, and home's long-press menu wraps its buttons instead of cutting the last one off.
+
+This release folds in 0.14.0, 0.15.0 and 0.16.0, which upstream published between the fork's
+0.13.0-z and now.
+
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)):
+
+- The screen lock moved from owl 16 to owl 18, because upstream took 16 for `strings { }` and
+  `lang()`, and 17 for `ws()`, `pin:` and `onPull`. A file that locks the screen says
+  `meta { owl: 18 }` now; nothing else about it changed. This is the third move: 13 went first,
+  then 14, then 16.
+- The fork's own text is in string resources like the rest of the launcher: the settings row
+  that opens BrowserDev, and the terminal's opacity hint, in English with Indonesian, Spanish
+  and Portuguese alongside. Upstream's new test for text written straight into the UI catches
+  what isn't, so nothing here fails it.
+- The key bar keeps this fork's rows, the ones its `keys.toml` carried: `;`, `pgdn` that
+  repeats while held, and readline's `^B`, `^A`, `^P`. From upstream it gains the photos key,
+  the `|` key, icon labels and their spoken names in the phone's language.
+- The `Browser` node at owl 11, the 12-column grid, the terminal's ⌨ button,
+  `terminal.opacity` and BrowserDev come through the sync unchanged. The today and fetch tiles
+  keep the 6x3 size the wider grid gives them, and the owl widget keeps its shorter text for a
+  tile narrower than half the screen.
+
+## 0.16.0 (versionCode 27) – 2026-10-29
+
+- Settings has a language: the phone's, or one the launcher has its text in. A pick brings
+  every open screen back in it, and widgets' `strings { }` and `lang()` follow it too.
+- The launcher comes in Spanish and Brazilian Portuguese (also for phones set to Portugal's),
+  with the drawer, today, fetch, owl and key bar widgets translated. Play installs carry every
+  language, not just the phone's. Indonesian uses the words Android itself does.
+- A Linux job's log keeps up with progress bars instead of piling them up, holds 200 lines,
+  and opens whole when tapped, red only where something went wrong, with [ copy ] for a bug
+  report (#240).
+- pacman installs bubblewrap again, so glycin and the GTK apps needing it upgrade (#243).
+- With frosted glass, the recent apps and the prompt bar frost too, on home, in the landscape
+  rail and over the open drawer.
+- Owl 17: `ws(url)` listens to a WebSocket server, `send()` talks back and `on x each { }`
+  runs for every message; `pin:` on `http`, `post` and `ws` trusts a LAN server's own
+  certificate by its SHA-256; a scrolling Column or Grid takes `onPull` for pull to refresh.
+- Fixes: picking a language no longer opens a terminal; home's long-press menu wraps its
+  buttons instead of cutting the last one off; rendering a theme no longer empties a folder
+  Omarchy's `current/theme` links to.
+
+## 0.15.0 (versionCode 26) – 2026-10-28
+
+- The launcher speaks Indonesian: with the phone set to Indonesian, all of its text, the
+  drawer, the today, fetch and owl widgets and the terminal key bar's spoken key names are
+  in Indonesian.
+- Widgets can carry their text in more than one language: owl 16's
+  `strings { en { ... } id { ... } }`, read as `str.name`, show the phone's language's with
+  English where it has none, and texts can take values. `lang()` is the phone's language for
+  APIs. Widgets recompile when the phone's language changes, and agents publishing a
+  one-language widget are asked whether to add English.
+- Coding agents take the theme as on Omarchy: Claude Code has an Omarchy theme to pick in
+  /theme, Pi starts in it, and OpenCode follows the terminal's colors; running sessions
+  recolor when the theme changes.
+- A widget, face or app added from the store can be removed from its page in the store, and
+  each store always has its installed tab.
+- The empty page right of home's last invites a widget, with create with the agent and browse
+  store, instead of a one-line hint.
+- The store's built-in widgets, a terminal and a tile per coding agent, are one row that
+  scrolls sideways.
+- At a large Android font size, buttons that would squeeze a label to a letter a line go under
+  it, in settings, the style screen and Files' selection bar, and settings' updates scroll with
+  its rows.
+
+## 0.14.0 (versionCode 25) – 2026-10-27
+
+- Tapping a now-playing widget brings up the player's own screen, like a web app's
+  window when one installed from a browser plays, rather than a new browser tab.
+- A drawer can leave the keyboard down as it opens, for scrolling the apps rather
+  than searching them: owl 15's `keyboard: false` in `drawer.owl`. Tapping the
+  bar brings it up.
+- Images go into a terminal as the path they're saved to in Linux's /tmp, which
+  opencode and Claude Code attach: tap a screenshot or copied image in Gboard's
+  clipboard suggestions, or paste an image copied on Android (Chrome's Copy image).
+  Copied text pastes as before. The terminal key bar's new photos key, beside paste, opens Android's
+  photo picker and pastes the photos picked the same way, several at once; above it, a `|` key. Owl 15's
+  `pickImages()` does it in a key bar of your own.
+- The today widget's weather screen switches between °C and °F when you tap the
+  temperature's °C or °F, and keeps the scale picked; until then it follows the country.
+- A widget can turn home to another page: `launcher("page:0")` shows the face left of
+  page 1, as Super+1…9 does for pages 1 to 9, so a tile can lead to the face that shows more of it.
+- Widgets can take dictation: owl 15's `speech("toggle")` turns the microphone on and off from a
+  tap, and `source said = android.speech` has what's heard, as you speak and once you're done, so a
+  widget can show it, run a command with it, or type it into a terminal with `on said.final`. The
+  phone recognizes the speech, as for the prompt bar, and only the text reaches the widget (#84).
+- Widgets can show how fast the phone charges: owl 15's `source p = android.power every 2s` has the
+  battery's current in mA, its watts, the mAh it holds, Android's time to full and what the charger
+  offers, the same units and sign on every phone (#226).
+- Home's empty pages at either end can be turned off in style.toml or the Style screen:
+  `home.empty-page-left = false` drops the one left of the leftmost page, and
+  `home.empty-page-right = false` the one after the last page of tiles (#202, #205).
+- GTK3 and wxWidgets apps (PrusaSlicer) leave out their own title bar and window buttons,
+  which only took space on a phone; apps with their own header bar keep it (#215).
+- A Linux window too big for the screen is drawn shrunk to fit, keeping its shape, instead of
+  running off the right and bottom edges, and touches map back to it (#218).
+- Fixes: a widget node with `clip: true` and a negative radius crashed home; a widget home
+  placed on another page, or one moved there, stopped updating two pages away until the
+  launcher restarted; a GTK app with a header bar kept asking how to decorate its window.
+
 ## 0.13.0-z (versionCode 25) – 2026-10-25
 
 Omalauncher Z on upstream 0.13.0 (versionCode 24) and its main: faces can draw to the screen's
@@ -31,15 +141,6 @@ Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalaun
   it, and it comes back to the page it was last on. `docs/BROWSER-DEV.md`.
 - The `Browser` node at owl 11, the 12-column grid, the terminal's ⌨ button and
   `terminal.opacity` come through the sync unchanged.
-
-
-## Unreleased
-
-- Tapping a now-playing widget brings up the player's own screen, like a web app's
-  window when one installed from a browser plays, rather than a new browser tab.
-- A drawer can leave the keyboard down as it opens, for scrolling the apps rather
-  than searching them: owl 15's `keyboard: false` in `drawer.owl`. Tapping the
-  bar brings it up.
 
 ## 0.13.0 (versionCode 24) – 2026-10-25
 

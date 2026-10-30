@@ -20,8 +20,8 @@ change. When a sync lands, re-read it against the new upstream and fix whatever 
 | | |
 |---|---|
 | package | `dev.omalauncher.fold` |
-| version name | `<upstream>-z`, e.g. `0.13.0-z` |
-| version code | one above upstream's, so it installs over an upstream build, e.g. `25` |
+| version name | `<upstream>-z`, e.g. `0.16.0-z` |
+| version code | one above upstream's, so it installs over an upstream build, e.g. `28` |
 | signing | release falls back to the debug key, which is what the phone's install has |
 | releases | tag `v<versionName>`, built by `.github/workflows/fork-release.yml` |
 
@@ -30,11 +30,18 @@ change. When a sync lands, re-read it against the new upstream and fix whatever 
 Fetch, branch as `sync/upstream-<version>`, merge, resolve, build, then open a PR.
 
 Conflicts so far land in the same places every time: `CHANGELOG.md`, `README.md`,
-`app/build.gradle.kts`, `app/src/main/assets/widgets/README.md`, the widget sizes in
-`10-today.owl` and `20-fetch.owl`, `fastlane`'s changelog for the versionCode both sides used,
-and the owl language tables (`Schema.kt`, `Builtins.kt`, `Compiler.kt`), because both sides add
-to them. `Home.kt` and `Launcher.kt` conflict when upstream rewrites home, which it does
-regularly.
+`app/build.gradle.kts`, `app/src/main/assets/widgets/README.md` and `docs/versions.md`, the
+widget sizes in `10-today.owl` and `20-fetch.owl` and the short-text threshold in `60-owl.owl`,
+our rows in `keybar.owl`, `fastlane`'s changelog for the versionCode both sides used, and the owl
+language tables (`Schema.kt`, `Builtins.kt`, `Compiler.kt`, `LangTest.kt`), because both sides
+add to them. `Home.kt` and `Launcher.kt` conflict when upstream rewrites home, which it does
+regularly, and the settings hub and style screen conflict when upstream moves their text into
+string resources.
+
+Since 0.15.0 upstream keeps every piece of UI text in `res/values/strings_*.xml` and runs
+`HardcodedTextTest`, which fails the build on a literal passed to a text call. Fork text follows
+that: a label we add goes in `strings_settings.xml` or `strings_style.xml` and then in the
+`values-in`, `values-es` and `values-pt` files beside it.
 
 Two files this document used to call the fork's own are shared ground now. `TerminalTiles.kt`
 conflicts because upstream gave terminals a translucent window for widgets' glass and the keys
@@ -42,11 +49,17 @@ their hand-back; `HomeGrid.kt` conflicts because upstream moved a tile into `Hom
 the pages either side of the one showing. `BrowserView.kt` and `LockCue.kt` are still untouched
 upstream and merge cleanly.
 
-Check the language level first when a sync starts. Upstream and the fork have collided twice:
-see [Owl levels](#owl-levels).
+Check the language level first when a sync starts. Upstream and the fork have collided three
+times: see [Owl levels](#owl-levels).
 
 After the merge: bump `versionName` to `<upstream>-z` and `versionCode` to upstream's plus one,
 add a `CHANGELOG.md` section at the top, and update this file.
+
+Syncs so far, each its own branch and PR: `sync/upstream-011`, `sync/upstream-012` and
+`sync/upstream-016`, the last one carrying 0.14.0, 0.15.0 and 0.16.0 together. A release's
+changelog file in `fastlane` is where the two schemes collide for real: upstream published
+versionCode 25 for 0.14.0 and the fork had already used 25 for 0.13.0-z, so that file stays the
+fork's notes, and the fork's next release notes go in the file for its own versionCode.
 
 ## Owl levels
 
@@ -59,18 +72,22 @@ either works or is rejected cleanly. Numbers are global, so two features cannot 
 | 12 | upstream | `screenTop`, how much of an app's top a camera cutout covers; `keybar "…" { }` files, `pressKey`, `typeText`, `latch`, `keybar.gaps-out` and `keybar.border-width` |
 | 13 | upstream | the phone's own controls: `settings`, `dnd`, `torch(level)`, `volume`'s stream, `notification("clear")`/`"action"`/`"reply"`/`"snooze"`/`"snoozeAll"`/`"unsnooze"`/`"unsnoozeAll"`, `drag` and `onDragEnd`, `android.network`, `android.sim`, a panel's `opacity`, `animate offset`, `tileOpacity` and `tileFrost` |
 | 14 | upstream | a face's `edge: true`, with `screenTop`, `screenLeft` and `screenRight` in a face; `ripple: false` |
-| 15 | upstream | a panel's `keyboard: false`, for a drawer that leaves the soft keyboard down |
-| 16 | fork | `lock(true)` and `lock(false)` |
+| 15 | upstream | a panel's `keyboard: false`, for a drawer that leaves the soft keyboard down; `pickImages`, `android.speech` and `speech`, `android.power`, `launcher("page:N")` |
+| 16 | upstream | `strings { }` and `str`, and `lang()` |
+| 17 | upstream | `onPull`, `pin:` on `http`, `post` and `ws`, `ws`, `send` and `on … each` |
+| 18 | fork | `lock(true)` and `lock(false)` |
 
 Level 13 was the fork's for one release (0.11.0-z) and is upstream's since 0.12.0, which took it
 for the control center's phone controls. The lock moved to 14 in the 0.12.2-z sync, which cost
 nothing: upstream used 14 for `ripple: false` and took it back before releasing. It moved again to
 16 in the 0.13.0-z release, because upstream shipped 14 for a face's edge and 15 for a panel's
-keyboard in the same release.
+keyboard in the same release, and to 18 in the 0.16.0-z release, because upstream took 16 for
+`strings { }` and 17 for WebSockets, `pin:` and `onPull`.
 
 Each move means a file written for the lock needs its `meta { owl: N }` raised: 13 for the first
-release, 14 for the second, 16 now. There was no way to keep 14, since an upstream launcher at 14
-accepts the level and then fails on `lock`, which is a worse message than a version error.
+release, 14 for the second, 16 for the third, 18 now. There was no way to keep 14, since an
+upstream launcher at 14 accepts the level and then fails on `lock`, which is a worse message than
+a version error.
 
 Level 11 is deliberately shared. `Browser` shipped at 11 before upstream took 11 for panels, and
 moving it would break widgets already written for it, so the fork keeps it there. This
@@ -93,7 +110,9 @@ cells.
 
 ### Terminal
 
-`terminal.opacity` (0.3 to 1.0, default 1) lets a terminal show the wallpaper through it. Since
+`terminal.opacity` (0.3 to 1.0, default 1) lets a terminal show the wallpaper through it, under
+the opaque Surface rows: its row reads the `style_opacity` string, shared with the widget
+opacity rows' label, and its hint is `style_terminal_opacity_hint`. Since
 the 0.12.2 sync the terminal's window is always translucent, as upstream made it for widgets'
 glass, so the setting only has to reach foot: at 1 the window is cleared and the tile's glass
 shows through at `widgets.opacity`, below 1 foot draws its own background at that alpha through
@@ -107,7 +126,9 @@ with the rows in the guest and the bar redrawn on save.~~ **Retired in the 0.11.
 `keys.toml` did and more. The fork adopted it: `ui/ExtraKeysSpec.kt`, `ui/ExtraKeysStore.kt`,
 `ui/ExtraKeysSpecTest.kt`, `LauncherData.keysDir` and the guest bind for `~/.config/omalauncher/keys`
 are gone, and the rows `keys.toml` had as its preset are the bar this fork ships as
-`assets/widgets/keybar.owl` (36 dp rows, 12 sp labels).
+`assets/widgets/keybar.owl` (36 dp rows, 12 sp labels). The 0.16.0 sync took upstream's photos
+key, its `|` key, its icon labels and their spoken names, and kept this fork's rows around them:
+`;`, `pgdn` next to `pgup`, readline's `^B`, `^A` and `^P`.
 
 This is the one fork feature upstream has taken over the same ground as, so it is also the one to
 drop from any upstream conversation: a PR for `terminal.opacity` or the ⌨ button stays as it was,
@@ -160,7 +181,7 @@ not reachable from a widget file, which is the point.
 ### Screen lock
 
 A widget holds the home screen still while it is being used: no page turn, no swipe up, no long
-press, and the prompt bar and recent strip open nothing. Owl 14.
+press, and the prompt bar and recent strip open nothing. Owl 18.
 
 ```owl
 Button { text: editing ? "done" : "draw"; onTap: { editing = !editing; lock(editing) } }
@@ -200,16 +221,16 @@ differs. The keys bar is no longer one of them: upstream took that ground in 0.1
 | `terminal.opacity` | none | `theme/Style.kt`, `linux/TerminalFont.kt`, `ui/TerminalTiles.kt` | small, and smaller since upstream's window is already translucent |
 | ~~keys bar and ⌨ button~~ | ~~none~~ | ~~`ui/ExtraKeys*`, `keys.toml`, terminal windows~~ | gone: upstream's `keybar.owl` replaced it. The ⌨ button is all that is left of the fork's, and it is a one-line move |
 | Browser node | 11 in the fork, taken upstream | `ui/BrowserView.kt`, owl's `Schema`, `Compiler`, `Builtins`, `Program`, `Render.kt`, `WidgetInstance`, `WidgetServices`, `WidgetEngine`, `Catalog` | medium, self-contained |
-| screen lock | 14 in the fork | `TerminalTiles`, `Home`, `HomeGrid`, `Launcher`, `LockCue`, `WidgetInstance`, owl's `Schema`, `Builtins` | medium, and `Home`/`Launcher` are the files upstream rewrites most |
+| screen lock | 18 in the fork | `TerminalTiles`, `Home`, `HomeGrid`, `Launcher`, `LockCue`, `WidgetInstance`, owl's `Schema`, `Builtins` | medium, and `Home`/`Launcher` are the files upstream rewrites most |
 | BrowserDev | none | `BrowserDevActivity.kt`, the manifest, `linux/OpenBridge.kt` | not for upstream: it answers a developer's need, not a launcher's, and a Play release has no business shipping a DevTools port |
 
 A picked feature goes out as one branch from `upstream/main`, not as a merge of this fork.
 Cherry-pick or copy the fork commits, then:
 
-- Take a fresh owl level. Upstream has 11 (panels), 12 (`screenTop`, the key bar) and 13 (the
-  phone's controls), so the Browser would arrive at 14 and the lock at 15, and `Compiler.LEVEL`,
-  `SINCE`, the widget README and `LangTest` move with it. The lock's move from 13 to 14 in this
-  fork is one example of what that costs: a widget file's level, its docs and its tests.
+- Take a fresh owl level. Upstream has 11 to 17 taken already, so the Browser would arrive at 18
+  and the lock at 19, and `Compiler.LEVEL`, `SINCE`, the widget README, `docs/versions.md` and
+  `LangTest` move with it. The lock has moved three times in this fork, 13 to 14 to 16 to 18,
+  which is what that costs: a widget file's level, its docs and its tests.
 - Leave out what belongs to the fork: the package name, the version suffix, this file and the
   fork plans.
 - Re-check the parts upstream has since rewritten. The lock's prompt-bar and strip gate lives

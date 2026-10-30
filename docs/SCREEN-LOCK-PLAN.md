@@ -19,7 +19,7 @@ The lock is an action, `lock(true)` and `lock(false)`, called from a handler. A 
 node would tie it to one tile. An action lets a face decide when its own UI is in a mode that
 wants the screen held.
 
-A file that asks for the lock declares `meta { owl: 16 }`. Launchers older than that reject
+A file that asks for the lock declares `meta { owl: 18 }`. Launchers older than that reject
 the file rather than ignoring the call and turning pages anyway.
 
 Locking holds the pager, the swipe up and the long press for the whole screen, because they
@@ -38,7 +38,7 @@ it is always the way out.
 
 ```owl
 widget "notes" {
-  meta { owl: 16 }
+  meta { owl: 18 }
   state editing = false
   Column {
     Button { text: editing ? "done" : "draw"; onTap: { editing = !editing; lock(editing) } }

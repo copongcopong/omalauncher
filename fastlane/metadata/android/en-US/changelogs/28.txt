@@ -1,0 +1,1 @@
+The launcher has a language, and its text comes in Indonesian, Spanish and Brazilian Portuguese. Widgets can follow a WebSocket server, trust a LAN server's own certificate, and refresh when a list is pulled down. The screen lock is owl 18 now, since upstream took 16 and 17. The key bar gains a photos key and a | key.

@@ -36,6 +36,7 @@ class WidgetInstanceBrowserTest {
             timeoutSeconds: Int,
             body: ByteArray?,
             method: String,
+            pin: String?,
         ): ShellResult = error("no http")
 
         override fun run(
