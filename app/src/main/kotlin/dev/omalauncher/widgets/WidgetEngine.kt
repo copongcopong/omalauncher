@@ -1,6 +1,9 @@
 package dev.omalauncher.widgets
 
+import dev.omalauncher.widgets.lang.sha256Hex
+import android.content.ComponentCallbacks
 import android.content.Context
+import android.content.res.Configuration
 import android.os.FileObserver
 import android.util.Log
 import androidx.compose.runtime.derivedStateOf
@@ -11,6 +14,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import dev.omalauncher.AppLanguage
 import dev.omalauncher.BuildConfig
 import dev.omalauncher.LauncherData
 import dev.omalauncher.Runtime
@@ -31,7 +35,7 @@ import dev.omalauncher.widgets.lang.Json
 import dev.omalauncher.widgets.lang.OwlKind
 import dev.omalauncher.widgets.lang.Program
 import dev.omalauncher.widgets.lang.Source
-import dev.omalauncher.widgets.market.Review
+import dev.omalauncher.widgets.lang.phoneLanguage
 import dev.omalauncher.widgets.market.Shared
 import dev.omalauncher.widgets.runtime.NO_HOME_TO_LOCK
 import dev.omalauncher.widgets.runtime.WidgetInstance
@@ -43,6 +47,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -512,6 +517,9 @@ class WidgetEngine(
     /** Signals a change in [dir], true for a file written there; conflated, so a burst of writes reloads once. */
     private val changes = Channel<Boolean>(Channel.CONFLATED)
 
+    /** The language the widgets were compiled for, which strings { } picks: the phone's at the last reload. */
+    private var language = phoneLanguage()
+
     @Suppress("unused") // Held so it isn't collected, which would stop the events.
     private var observer: FileObserver? = null
 
@@ -527,7 +535,8 @@ class WidgetEngine(
                 dir.mkdirs()
                 checkDir.mkdirs()
                 // Requests from before this start have been given up on: owl-send waits a few seconds at most.
-                inboxDir.deleteRecursively()
+                // The guest can write here: a link in the inbox's place must not take what it points to with it.
+                runCatching { LauncherData.deleteTree(inboxDir) }
                 inboxDir.mkdirs()
                 markets.forEach { it.load() }
             }
@@ -576,6 +585,18 @@ class WidgetEngine(
                 snapshotFlow { loaded }.first { it }
                 snapshotFlow { runtime.style.style[Style.COLUMNS] }.collect { layout.regrid(it, pages.map(::itemsOn)) }
             }
+            // A new phone language, or one picked in settings: files with strings { } or lang() compile anew for it.
+            launch { AppLanguage.language.drop(1).collect { changes.trySend(false) } }
+            context.registerComponentCallbacks(
+                object : ComponentCallbacks {
+                    override fun onConfigurationChanged(newConfig: Configuration) {
+                        if (phoneLanguage() != language) changes.trySend(false)
+                    }
+
+                    @Deprecated("Deprecated in Java")
+                    override fun onLowMemory() = Unit
+                },
+            )
             changes.trySend(false)
             for (written in changes) {
                 // Editors write in several steps (truncate, write, rename); let them finish. Only then: home waits on the
@@ -590,11 +611,14 @@ class WidgetEngine(
     private fun widgetFiles() = dir.listFiles { f -> (!f.name.startsWith(".") || f.name == STOCK_DRAWER || f.name == STOCK_KEYBAR) && f.extension == "owl" }.orEmpty().sortedBy { it.name }
 
     private suspend fun reload(files: List<File>) {
+        // Compiled for another language, a file's texts would stay in it.
+        val relanguaged = phoneLanguage() != language
+        language = phoneLanguage()
         val old = specs.associateBy { it.file.name }
         // Each file on its own thread: at startup every one compiles, and home waits for them all.
         val parsed =
             withContext(Dispatchers.IO) {
-                files.map { f -> async { old[f.name]?.takeIf { it.stamp == f.lastModified() } ?: compile(f, old[f.name]) } }.awaitAll()
+                files.map { f -> async { old[f.name]?.takeIf { !relanguaged && it.stamp == f.lastModified() } ?: compile(f, old[f.name]) } }.awaitAll()
             }
         val changed = parsed.filter { old[it.file.name] !== it }.map { it.file.name }
         specs.clear()
@@ -642,7 +666,8 @@ class WidgetEngine(
                 )
             prev?.let(inst::adopt)
             instances[spec.file.name] = inst
-            inst.start(scope) { isLive(spec) }
+            // The spec as it is now, not as loaded: a move to another page (placeOnPage) replaces it without a reload.
+            inst.start(scope) { isLive(specs.firstOrNull { it.file.name == name } ?: spec) }
         }
         // A screen whose widget went away, stopped compiling or lost its screen { } closes.
         if (openScreen?.let { instances[it]?.program?.screen } == null) openScreen = null
@@ -883,7 +908,7 @@ class WidgetEngine(
         val stamp = file.lastModified()
         val bytes = runCatching { file.readBytes() }.getOrElse { return broken(file, previous, stamp, it.message ?: "can't read", "") }
         val text = String(bytes)
-        val hash = Review.sha256(bytes)
+        val hash = sha256Hex(bytes)
         hashes[file.name] = hash
         return try {
             val p = Compiler.compile(text)
@@ -1022,7 +1047,7 @@ class WidgetEngine(
             path: String,
             target: File,
             policy: Policy,
-        ) = Managed(target, policy) { context.assets.open(path).use { it.readBytes() } }
+        ) = Managed.asset(context, path, target, policy)
 
         val assets = context.assets
         return buildList {
@@ -1040,7 +1065,7 @@ class WidgetEngine(
     fun guestManaged(): List<Managed> =
         listOf("AGENTS.md", "CLAUDE.md").map { Managed.text(File(proot.home, it), Policy.Seeded) { AGENT_POINTER } } +
             listOf("owl-check", "owl-send").map { bin ->
-                Managed(File(proot.rootfs, "usr/local/bin/$bin"), Policy.Owned, executable = true) { context.assets.open("$bin.sh").use { it.readBytes() } }
+                Managed.asset(context, "$bin.sh", File(proot.rootfs, "usr/local/bin/$bin"), Policy.Owned, executable = true)
             }
 
     companion object {

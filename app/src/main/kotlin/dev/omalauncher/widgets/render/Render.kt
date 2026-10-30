@@ -540,6 +540,8 @@ private fun Element(
     // A Popup's size and weight are its menu's, in a window of its own: the layout it's in doesn't hold it.
     val mod = common(p, if (el.kind == "Popup") null else parent)
     val sized = SIZING.any { p.has(it) }
+    // A list pulled down past its top runs it (owl 17); only Columns and Grids that scroll have one.
+    val pull = el.handlers["onPull"]?.let { pullToRefresh(it, env, inst) } ?: Modifier
     when (el.kind) {
         "Column" -> {
             val gap = (p.observe("gap")?.num() ?: 4.0).dp
@@ -551,12 +553,12 @@ private fun Element(
                     else -> Alignment.Start
                 }
             if (p.observe("lazy")?.truthy == true) {
-                LazyNodes(el.children, env, inst, mod, null, arrangement.takeIf { p.has("justify") }, alignment, gap, p.observe("reverse")?.truthy == true)
+                LazyNodes(el.children, env, inst, mod.then(pull), null, arrangement.takeIf { p.has("justify") }, alignment, gap, p.observe("reverse")?.truthy == true)
             } else {
                 val hug = columnHugs(inst.program.level, sized, parent is RowScope, parent is ColumnScope && LocalHug.current)
                 HoldingPopups(el, mod, env, inst) { m, children ->
                     Column(
-                        m.then(if (p.observe("scroll")?.truthy == true) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                        m.then(pull).then(if (p.observe("scroll")?.truthy == true) Modifier.verticalScroll(rememberScrollState()) else Modifier),
                         verticalArrangement = arrangement,
                         horizontalAlignment = alignment,
                     ) { CompositionLocalProvider(LocalHug provides hug) { Nodes(children, env, inst, this) } }
@@ -588,7 +590,7 @@ private fun Element(
             val columns = (p.observe("columns")?.num() ?: 2.0).toInt().coerceIn(1, 12)
             val gap = (p.observe("gap")?.num() ?: 6.0).dp
             if (p.observe("lazy")?.truthy == true) {
-                LazyNodes(el.children, env, inst, mod, columns, null, Alignment.Start, gap, p.observe("reverse")?.truthy == true)
+                LazyNodes(el.children, env, inst, mod.then(pull), columns, null, Alignment.Start, gap, p.observe("reverse")?.truthy == true)
             } else {
                 Grid(mod, columns, gap) { Nodes(el.children, env, inst, null) }
             }
@@ -851,7 +853,8 @@ private fun common(
         val rotation = p.float("rotation", 0f)
         val scale = p.float("scale", 1f)
         val clip = p.observe("clip")?.truthy == true
-        val radius = p.observe("radius")?.num() ?: 0.0
+        // A shape with a negative or NaN corner throws when it's laid out, which took home down (Play, 0.13.0).
+        val radius = p.observe("radius")?.num()?.takeIf { it > 0 }?.coerceAtMost(MAX_DP) ?: 0.0
         m =
             m.graphicsLayer {
                 alpha = opacity().coerceIn(0f, 1f)
