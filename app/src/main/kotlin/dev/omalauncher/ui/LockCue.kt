@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
 /**
@@ -60,8 +61,8 @@ fun LockCue(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             LockIcon(Palette.accent)
-            BasicText("screen locked", style = Mono.copy(fontSize = TextSize.Small))
-            BracketAction("unlock", Palette.accent, onClick = onUnlock)
+            BasicText(stringResource(R.string.home_lock_locked), style = Mono.copy(fontSize = TextSize.Small))
+            BracketAction(stringResource(R.string.home_lock_unlock), Palette.accent, onClick = onUnlock)
         }
     }
 }
