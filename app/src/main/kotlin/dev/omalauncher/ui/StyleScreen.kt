@@ -426,12 +426,8 @@ private fun TerminalSection(
     FontOption(font.families, font.family) { family -> style.update { it.with(Style.TERMINAL_FONT, family) } }
     OptionHint(stringResource(R.string.style_terminal_hint), Modifier.padding(bottom = 4.dp))
     NumberOption(R.string.style_text, TerminalText.entries.map { it.label to it.em.toDouble() }, Style.TERMINAL_TEXT, style, unit = " dp")
-    NumberOption(
-        R.string.style_opacity,
-        listOf("100%" to 1.0, "88%" to 0.88, "75%" to 0.75, "60%" to 0.6),
-        Style.TERMINAL_OPACITY,
-        style,
-    )
+    // A slider, as the tiles' opacity row is, over the setting's own range of 0.3 to 1.
+    NumberSlider(R.string.style_opacity, style, Style.TERMINAL_OPACITY)
     OptionHint(stringResource(R.string.style_terminal_opacity_hint), Modifier.padding(bottom = 4.dp))
     // In portrait, where columns run short; landscape has plenty.
     val metrics = LocalContext.current.resources.displayMetrics
