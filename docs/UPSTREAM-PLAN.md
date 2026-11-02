@@ -1,17 +1,20 @@
 # Sending the fork's additions upstream: two pull requests
 
-Status: both pull requests are open. The lock is [#254](https://github.com/SimonSchubert/omalauncher/pull/254)
-on `feat/screen-lock`, ready for review at owl 18. The Browser is
-[#255](https://github.com/SimonSchubert/omalauncher/pull/255) on `feat/browser-node`, a draft
-stacked on #254 at owl 19: once that merges, rebase this one onto upstream's main so its copy of
-the lock's commits drops out of the diff. Both branches live in the fork's repo; `main` here keeps
-only the fork.
+Status: the lock is **in**. #254 was squashed onto upstream's `main` as `d7c52cb`, then reworked in
+`ead79c0` into a `lock:` property rather than the `lock(...)` action, so a widget cannot forget to
+let go or believe it still holds a screen the chip freed. Bare `lock: true` doesn't compile. Owl 18
+also carries `Input`'s `lines`, which landed just before.
+
+The Browser is [#255](https://github.com/SimonSchubert/omalauncher/pull/255) on
+`feat/browser-node`, open for review at owl 18 since 18 isn't released. It was reviewed on an
+emulator and rebased onto `ead79c0`: the level moved from 19 into 18, another app's link opens only
+on a gesture in the page, Back takes the page's history first, and the fork's leftovers are out of
+the docs and the examples. The branch lives in the fork's repo; `main` here keeps only the fork.
 
 Numbers below are against upstream 0.18.0, versionCode 29, owl 17, which is where
 `sync/upstream-018` left the fork's own main. The fork is at owl 18, because its lock took that
-level. CI on both shows `action_required` until a maintainer approves a first-time contributor's
-run, and upstream's own `main` currently fails lint on `Previews.kt:142`, so expect one red check
-that is not the patch's.
+level. CI on a pull request shows `action_required` until a maintainer approves a first-time
+contributor's run, so a green check may never appear here.
 
 The fork has four additions upstream has none of: the `Browser` node, the screen lock, the
 terminal's opacity and BrowserDev. This document is the plan for the first two, sent as two pull
