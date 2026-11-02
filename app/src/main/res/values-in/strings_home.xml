@@ -54,7 +54,7 @@
     <string name="home_refresh">muat ulang</string>
     <string name="home_refreshing">memuat ulang</string>
     <string name="home_job_failed">gagal:</string>
-    <string name="home_job_whole_log">ketuk untuk log lengkap</string>
+    <string name="home_job_whole_log">log lengkap</string>
     <string name="home_job_less">ringkas</string>
     <string name="home_job_copy">salin</string>
     <string name="home_settings">setelan</string>

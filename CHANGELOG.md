@@ -4,6 +4,72 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
+## 0.18.0-z (versionCode 30) – 2026-10-30
+
+Omalauncher Z on upstream 0.18.0 (versionCode 29) and its main, which published 0.17.0 and 0.18.0
+together: a spoken conversation with a coding agent, as a screen of its own that the AI bar's
+mic opens. Voice talks to Claude Code, Grok and OpenCode, and to Codex, GitHub Copilot, Kimi and
+Cursor, reading replies sentence by sentence, showing tool calls as steps and asking before a
+change, by voice or by a tap. Each agent keeps its conversation for twelve hours, and the
+screen's own settings pick the language, the voice and the reading speed. The launcher comes in
+German and Simplified Chinese, so all six of its languages ship. Settings offers to make
+Omalauncher the default home app, the today and fetch widgets shrink to 2x2 and drop rows
+rather than cut them off, the drawer opens without a pause on a slow tablet, a face's shaders
+stop redrawing every frame they don't change, and Play's two crash reports from the launcher's
+own code are handled.
+
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)):
+
+- Nothing of the fork's own changed behavior in this sync. The lock stays at owl 18, since
+  upstream's language level is still 17, and `Browser`, `web`, BrowserDev, `terminal.opacity`
+  and the key bar's rows and size came through untouched.
+- The fork's five strings for the BrowserDev settings row, the lock cue and the terminal's
+  opacity hint are in German and Simplified Chinese now, beside the Indonesian, Spanish and
+  Portuguese ones.
+- The today and fetch tiles keep 6x3 as the default on the wider grid, with 4x2 the narrowest
+  they go, which is upstream's 3x3 and 2x2 scaled to twelve columns.
+- `fastlane`'s Play notes are upstream's from here on. The fork does not publish to Play, its
+  release notes come from `fork-release.yml`, so the version codes the two sides share stop
+  costing a conflict and upstream's notes stop being lost.
+
+## 0.18.0 (versionCode 29) – 2026-11-01
+
+- Voice talks to Codex (over `codex app-server`), GitHub Copilot, Kimi and Cursor (over ACP)
+  too, besides Claude Code, Grok and OpenCode. Its agent list has every one of them, and
+  picking one that isn't installed installs it, with the install's log and a retry in place of
+  the conversation.
+- Voice has its own settings, from a gear in its top row: the language it listens and reads
+  replies in, the voice for that language and how fast replies are read (1.25x by default).
+  What Voice says itself is in that language too.
+- When the agent says it isn't signed in, Voice offers [ log in ], which opens the agent in a
+  terminal of its own.
+- Voice's orb is a lit disc in the theme's accent, rings leaving it as you speak and a comet
+  circling it while the agent works. On a tablet the conversation is centred and no wider
+  than 560dp.
+- Speech goes online for a language with no offline model, uses a recognizer picked over
+  Google's (such as Transcribro), skips a stand-in one (FUTO Voice Input) for the speech app's
+  own speak-now screen, and understands the three-letter languages Samsung's text-to-speech
+  names.
+- A job's log offers the whole log with a [ whole log ] button.
+- Fixes: a widget preview whose window the system refused to remove and listing apps when a
+  system call fails partway no longer crash the launcher; Voice brought back in a new process
+  finds the agents again.
+
+## 0.17.0 (versionCode 28) – 2026-10-31
+
+- Voice: a spoken conversation with Claude Code, Grok or OpenCode as a launcher screen of its
+  own, opened from the drawer, the AI bar's mic (holding it still dictates) or `omarchy-voice`.
+  Each open starts a new conversation and the last one can be resumed; a type button switches
+  to typing and reading, with nothing said aloud. It speaks and understands the launcher's six
+  languages.
+- The launcher comes in German and Simplified Chinese.
+- Settings offers to make Omalauncher the default home app while it isn't one.
+- today and fetch shrink to 2x2, and on a short or squeezed tile today's date takes one line so
+  the forecast isn't cut off.
+- On a slow tablet the drawer opens without a pause and swiping past a face with shaders runs
+  smoothly.
+- The store side by side opens on the grid's first entry rather than an empty pane.
+
 ## 0.16.0-z (versionCode 28) – 2026-10-30
 
 Omalauncher Z on upstream 0.16.0 (versionCode 27) and its main: settings has a language, and

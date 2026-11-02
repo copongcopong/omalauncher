@@ -27,6 +27,8 @@
     <string name="settings_needs_linux">requiere linux</string>
     <string name="settings_packages">paquetes</string>
     <string name="settings_packages_subtitle">instala apps y herramientas de Linux con pacman y el AUR</string>
+    <string name="settings_home_app">app de inicio predeterminada</string>
+    <string name="settings_home_app_subtitle">haz de Omalauncher tu pantalla principal · los accesos directos de apps lo necesitan</string>
     <string name="settings_local_network">red local</string>
     <string name="settings_local_network_subtitle">permite que los widgets y linux lleguen a tu impresora, home assistant, …</string>
     <string name="settings_android">configuración de android</string>

@@ -10,6 +10,9 @@ const val FILES_COMMAND = "omarchy-files"
 /** Exec of the launcher's development browser, from the guest; see OpenBridge's shim. */
 const val DEV_COMMAND = "browser-dev"
 
+/** Exec of the Voice entry; the launcher opens its voice screen for it (see OpenBridge's shim). */
+const val VOICE_COMMAND = "omarchy-voice"
+
 /** Exec of the Editor entry and Linux's $EDITOR; the launcher's own editor (see OpenBridge's shim). */
 const val EDIT_COMMAND = "omarchy-edit"
 
@@ -34,6 +37,7 @@ private val CURATED =
         "btop" to entry("btop", "btop", icon = "btop"),
         "omarchy-files" to entry("Files", FILES_COMMAND, terminal = false, icon = bundledIcon("files")),
         "micro" to entry("Editor", EDIT_COMMAND, terminal = false, icon = bundledIcon("editor")),
+        "omarchy-voice" to entry("Voice", VOICE_COMMAND, terminal = false, icon = bundledIcon("voice")),
         "cliamp" to entry("Cliamp", "cliamp", icon = bundledIcon("cliamp")),
     )
 

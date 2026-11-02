@@ -20,8 +20,8 @@ change. When a sync lands, re-read it against the new upstream and fix whatever 
 | | |
 |---|---|
 | package | `dev.omalauncher.fold` |
-| version name | `<upstream>-z`, e.g. `0.16.0-z` |
-| version code | one above upstream's, so it installs over an upstream build, e.g. `28` |
+| version name | `<upstream>-z`, e.g. `0.18.0-z` |
+| version code | one above upstream's, so it installs over an upstream build, e.g. `30` |
 | signing | release falls back to the debug key, which is what the phone's install has |
 | releases | tag `v<versionName>`, built by `.github/workflows/fork-release.yml` |
 
@@ -40,8 +40,10 @@ string resources.
 
 Since 0.15.0 upstream keeps every piece of UI text in `res/values/strings_*.xml` and runs
 `HardcodedTextTest`, which fails the build on a literal passed to a text call. Fork text follows
-that: a label we add goes in `strings_settings.xml` or `strings_style.xml` and then in the
-`values-in`, `values-es` and `values-pt` files beside it.
+that: a label we add goes in `strings_settings.xml`, `strings_style.xml` or `strings_home.xml`
+and then in the files for the other five languages beside it (`values-in`, `values-es`,
+`values-pt`, and since 0.17.0 `values-de` and `values-zh`). Widget-side text goes in the file's
+own `strings { }` the same way.
 
 Two files this document used to call the fork's own are shared ground now. `TerminalTiles.kt`
 conflicts because upstream gave terminals a translucent window for widgets' glass and the keys
@@ -55,11 +57,19 @@ times: see [Owl levels](#owl-levels).
 After the merge: bump `versionName` to `<upstream>-z` and `versionCode` to upstream's plus one,
 add a `CHANGELOG.md` section at the top, and update this file.
 
-Syncs so far, each its own branch and PR: `sync/upstream-011`, `sync/upstream-012` and
-`sync/upstream-016`, the last one carrying 0.14.0, 0.15.0 and 0.16.0 together. A release's
-changelog file in `fastlane` is where the two schemes collide for real: upstream published
-versionCode 25 for 0.14.0 and the fork had already used 25 for 0.13.0-z, so that file stays the
-fork's notes, and the fork's next release notes go in the file for its own versionCode.
+Syncs so far, each its own branch and PR: `sync/upstream-011`, `sync/upstream-012`,
+`sync/upstream-016` (0.14.0 to 0.16.0 together) and `sync/upstream-018` (0.17.0 and 0.18.0).
+
+One check on 0.18.0-z is red for a reason outside the merge: upstream's `main` fails lint with
+`Previews.kt:142: Error: Statement must run from @WorkerThread ... [ThreadConstraint]`, from its
+own crash fix that put the preview's dismissal in `finally`, and the same run fails on
+SimonSchubert/omalauncher. The fork's build and tests pass on pop-480; drop this note once
+upstream's lint is green again.
+
+`fastlane`'s Play notes are upstream's and stay upstream's since the 0.18.0-z sync. The fork
+does not publish to Play and its GitHub release notes come from `fork-release.yml`, so the
+version codes the two sides share (25, 28) stop costing a conflict and upstream's notes stop
+being dropped.
 
 ## Owl levels
 

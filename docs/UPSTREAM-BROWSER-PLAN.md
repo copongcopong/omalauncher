@@ -1,7 +1,8 @@
 # Browser node: the pull request to upstream
 
-Status: not started. Checks and numbers below are against upstream 0.16.0, versionCode 27, owl 17.
-The fork is at owl 18 since its lock took that level.
+Status: not started. Checks and numbers below are against upstream 0.18.0, versionCode 29, owl 17,
+which is where `sync/upstream-018` left the fork's own main. The fork is at owl 18 since its lock
+took that level.
 
 This is the plan for sending the fork's `Browser` node to `SimonSchubert/omalauncher`. The design
 itself is in `docs/BROWSER-NODE-PLAN.md`; this file only says what the pull request carries, what
@@ -61,18 +62,25 @@ which belongs in the pull request's notes.
 
 ## Where the patch does not drop in any more
 
-Upstream moved under the node. Commits since the node landed, per file: `Home.kt` 23,
-`WidgetInstance.kt` 34, `WidgetServices.kt` 24, `Render.kt` 19, `TerminalTiles.kt` 13,
-`HomeGrid.kt` 8, the owl tables 27.
+Upstream moved under the node. Commits since the node landed, per file: `WidgetInstance.kt` 37,
+the owl tables 29, `WidgetServices.kt` 26, `Home.kt` 23, `Render.kt` 20, `TerminalTiles.kt` 13,
+`HomeGrid.kt` 9, `Catalog.kt` 3.
 
 - Home is a panel host now, and a tile's focus and lift run through the key bar's hand-back and
   the frost backdrop. The Browser's "inert until tapped" and its `dispatchTouchEvent` flag have
   to be re-applied to that path, not copied over it.
 - `Services` gained `pin:`, `webSocket(...)`, `speech`, `pickImages` and the rest. The browser
   arm and the two-page eviction sit beside them; `browser(...)` itself keeps its signature.
-- `Render.kt` gained a node or three, so the arm is re-added rather than patched.
+- `Render.kt` gained nodes rather than losing them, so the arm is re-added rather than patched.
+- Voice, upstream's own agent conversation, now sits in `ui/voice`, `voice/` and
+  `strings_voice.xml`, and it is where a mic tap goes. Nothing of it touches the Browser node,
+  but it is why `WidgetServices` and `WidgetInstance` are busier than they were.
 - `Catalog`'s no-Linux list still carries `browser GET ` from the fork, which arrives as a
   one-line diff.
+- Home now composes two pages either side of the one showing rather than one, which changes what
+  "its page shows" means for a Browser tile: a page two pages away is built early, so the node's
+  load, its focus and the two-page cap are worth re-checking against that, and against a store
+  preview that still runs with no page around it.
 
 ## What the pull request says
 

@@ -509,6 +509,8 @@ class WidgetInstance(
             // The first frame after parking doesn't go back before a time a read already got.
             frameTime.doubleValue = if (parkedStart == RUNNING) v else maxOf(v, parkedTime)
             parkedStart = RUNNING
+            ticked = true
+            tickNanos = 0
         }
 
     override fun runInto(
@@ -611,7 +613,7 @@ class WidgetInstance(
     }
 
     /**
-     * Rolling average of Canvas/Shader draw time. Over budget halves the
+     * Rolling average of Canvas/Shader draw time, with what the frame's tick set off before it. Over budget halves the
      * widget's animation frame rate; well under it again, full rate comes back.
      */
     private var drawAverage = 0.0
@@ -624,12 +626,38 @@ class WidgetInstance(
 
     private var reportedSlow = false
 
+    /**
+     * What a frame-clock tick sets off before the drawing: lets and conditions reading `time` are worked out in
+     * composition, and cost a frame as much as drawing can (the koi pond's bodies: as long again as its Canvas on a
+     * Galaxy Tab A8, which left it a hair under budget, animating at full rate or half by chance). Counted from a tick
+     * to the next draw, so a widget that isn't animating never adds any.
+     */
+    private var tickNanos = 0L
+    private var ticked = false
+    private var timedEvals = 0
+
+    @PublishedApi
+    internal var inDraw = false
+
+    /** Runs [f] as drawing: what it evaluates is in the draw's own time already. */
+    inline fun <T> drawing(f: () -> T): T {
+        inDraw = true
+        try {
+            return f()
+        } finally {
+            inDraw = false
+        }
+    }
+
     fun recordDraw(nanos: Long) {
+        val frame = nanos + tickNanos
+        tickNanos = 0
+        ticked = false
         if (draws < WARMUP_DRAWS) {
             draws++
             return
         }
-        drawAverage = drawAverage * 0.9 + nanos * 0.1
+        drawAverage = drawAverage * 0.9 + frame * 0.1
         if (!slow && drawAverage > SLOW_DRAW_NANOS) {
             slow = true
             // Once: a widget that hovers around the budget would otherwise report every time it crosses it.
@@ -647,7 +675,15 @@ class WidgetInstance(
         where: String,
     ): Value {
         ev.const?.let { return it }
-        return guarded(where) { budget.eval(ev, env) } ?: Null
+        if (!ticked || inDraw || timedEvals > 0) return guarded(where) { budget.eval(ev, env) } ?: Null
+        val started = System.nanoTime()
+        timedEvals++
+        try {
+            return guarded(where) { budget.eval(ev, env) } ?: Null
+        } finally {
+            timedEvals--
+            tickNanos += System.nanoTime() - started
+        }
     }
 
     /** Runs [f], turning errors into null plus a report starting with [where]. */

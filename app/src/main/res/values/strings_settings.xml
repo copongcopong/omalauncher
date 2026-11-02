@@ -30,6 +30,9 @@
     <string name="settings_needs_linux">needs linux</string>
     <string name="settings_packages">packages</string>
     <string name="settings_packages_subtitle">install Linux apps and tools with pacman and the AUR</string>
+    <!-- Shown while Omalauncher isn't the default home app; tapping asks Android to make it one. -->
+    <string name="settings_home_app">default home app</string>
+    <string name="settings_home_app_subtitle">make Omalauncher your home screen · app shortcuts need it</string>
     <string name="settings_local_network">local network</string>
     <string name="settings_local_network_subtitle">let widgets and linux reach your printer, home assistant, …</string>
     <string name="settings_android">android settings</string>
