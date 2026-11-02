@@ -60,6 +60,12 @@ add a `CHANGELOG.md` section at the top, and update this file.
 Syncs so far, each its own branch and PR: `sync/upstream-011`, `sync/upstream-012`,
 `sync/upstream-016` (0.14.0 to 0.16.0 together) and `sync/upstream-018` (0.17.0 and 0.18.0).
 
+One check on 0.18.0-z is red for a reason outside the merge: upstream's `main` fails lint with
+`Previews.kt:142: Error: Statement must run from @WorkerThread ... [ThreadConstraint]`, from its
+own crash fix that put the preview's dismissal in `finally`, and the same run fails on
+SimonSchubert/omalauncher. The fork's build and tests pass on pop-480; drop this note once
+upstream's lint is green again.
+
 `fastlane`'s Play notes are upstream's and stay upstream's since the 0.18.0-z sync. The fork
 does not publish to Play and its GitHub release notes come from `fork-release.yml`, so the
 version codes the two sides share (25, 28) stop costing a conflict and upstream's notes stop
