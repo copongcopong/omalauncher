@@ -211,6 +211,10 @@ section each for Browser tiles and the screen lock.
 
 ## Sending a feature upstream
 
+The Browser node is the one to send first, and `docs/UPSTREAM-BROWSER-PLAN.md` is that pull
+request's plan: what it carries, what stays here, the owl level it takes, and where upstream
+has moved under it since the node landed.
+
 Upstream has none of these: `terminal.opacity`, `Browser` and `lock` all read as absent from
 `upstream/main`, and the 12-column grid ships there already as a setting, so only the default
 differs. The keys bar is no longer one of them: upstream took that ground in 0.11.0 with
