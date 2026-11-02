@@ -221,9 +221,10 @@ section each for Browser tiles and the screen lock.
 
 ## Sending a feature upstream
 
-The Browser node is the one to send first, and `docs/UPSTREAM-BROWSER-PLAN.md` is that pull
-request's plan: what it carries, what stays here, the owl level it takes, and where upstream
-has moved under it since the node landed.
+Two pull requests go out, the screen lock first at owl 18 and the Browser node second at 19.
+`docs/UPSTREAM-PLAN.md` is that plan: what each one carries, what stays here, why the lock has to
+come first when the Browser needs the same gating, what changes if the lock is turned down, and
+where upstream has moved under both since they landed.
 
 Upstream has none of these: `terminal.opacity`, `Browser` and `lock` all read as absent from
 `upstream/main`, and the 12-column grid ships there already as a setting, so only the default
@@ -232,17 +233,17 @@ differs. The keys bar is no longer one of them: upstream took that ground in 0.1
 
 | feature | owl level | files it touches | how hard to port |
 |---|---|---|---|
+| screen lock | 18 in the fork, 18 to send | `TerminalTiles`, `LockCue`, `Home`, `HomeGrid`, `Launcher`, `WidgetInstance`, `WidgetEngine`, owl's `Schema`, `Builtins`, `Compiler` | medium, and it is the one that has to go first: the Browser needs its gating |
 | `terminal.opacity` | none | `theme/Style.kt`, `linux/TerminalFont.kt`, `ui/TerminalTiles.kt` | small, and smaller since upstream's window is already translucent |
 | ~~keys bar and ⌨ button~~ | ~~none~~ | ~~`ui/ExtraKeys*`, `keys.toml`, terminal windows~~ | gone: upstream's `keybar.owl` replaced it. The ⌨ button is all that is left of the fork's, and it is a one-line move |
-| Browser node | 11 in the fork, taken upstream | `ui/BrowserView.kt`, owl's `Schema`, `Compiler`, `Builtins`, `Program`, `Render.kt`, `WidgetInstance`, `WidgetServices`, `WidgetEngine`, `Catalog` | medium, self-contained |
-| screen lock | 18 in the fork | `TerminalTiles`, `Home`, `HomeGrid`, `Launcher`, `LockCue`, `WidgetInstance`, owl's `Schema`, `Builtins` | medium, and `Home`/`Launcher` are the files upstream rewrites most |
+| Browser node | 11 in the fork, 19 to send | `ui/BrowserView.kt`, `TerminalTiles` (a focused page's hold), owl's `Schema`, `Compiler`, `Builtins`, `Program`, `Render.kt`, `WidgetInstance`, `WidgetServices`, `WidgetEngine`, `Catalog` | medium, and it goes second, once the hold it relies on is upstream's |
 | BrowserDev | none | `BrowserDevActivity.kt`, the manifest, `linux/OpenBridge.kt` | not for upstream: it answers a developer's need, not a launcher's, and a Play release has no business shipping a DevTools port |
 
 A picked feature goes out as one branch from `upstream/main`, not as a merge of this fork.
 Cherry-pick or copy the fork commits, then:
 
-- Take a fresh owl level. Upstream has 11 to 17 taken already, so the Browser would arrive at 18
-  and the lock at 19, and `Compiler.LEVEL`, `SINCE`, the widget README, `docs/versions.md` and
+- Take a fresh owl level. Upstream has 11 to 17 taken already, so the lock arrives at 18 and the
+  Browser at 19, and `Compiler.LEVEL`, `SINCE`, the widget README, `docs/versions.md` and
   `LangTest` move with it. The lock has moved three times in this fork, 13 to 14 to 16 to 18,
   which is what that costs: a widget file's level, its docs and its tests.
 - Leave out what belongs to the fork: the package name, the version suffix, this file and the
