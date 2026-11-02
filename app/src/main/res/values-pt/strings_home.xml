@@ -58,7 +58,7 @@
     <string name="home_refresh">atualizar</string>
     <string name="home_refreshing">atualizando</string>
     <string name="home_job_failed">falhou:</string>
-    <string name="home_job_whole_log">toque para ver o log completo</string>
+    <string name="home_job_whole_log">log completo</string>
     <string name="home_job_less">menos</string>
     <string name="home_job_copy">copiar</string>
     <string name="home_settings">configurações</string>

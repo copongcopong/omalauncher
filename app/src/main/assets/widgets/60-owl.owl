@@ -34,6 +34,16 @@ widget "owl" {
       music: "música"; minutes: n => "${n}m"; hours: n => "${n}h"
       day: d => "dia ${d}"; tiredShort: b => "cansada · ${b}%"; tired: b => "cansada · bateria ${b}%"; fed: t => "comeu há ${t}"
     }
+    de {
+      eggShort: "ausbrüten"; egg: "ein ei · tippen zum schlüpfen"; hungryShort: "füttern"; hungry: "hungrig · tippen zum füttern"
+      music: "musik"; minutes: n => "${n}m"; hours: n => "${n}h"
+      day: d => "tag ${d}"; tiredShort: b => "müde · ${b}%"; tired: b => "müde · akku ${b}%"; fed: t => "gefüttert vor ${t}"
+    }
+    zh {
+      eggShort: "点按孵化"; egg: "一颗蛋 · 点按孵化"; hungryShort: "点按喂食"; hungry: "饿了 · 点按喂食"
+      music: "音乐"; minutes: n => "${n}分钟"; hours: n => "${n}小时"
+      day: d => "第 ${d} 天"; tiredShort: b => "累了 · ${b}%"; tired: b => "累了 · 电量 ${b}%"; fed: t => "${t}前喂过"
+    }
   }
 
   source now = clock every 1s

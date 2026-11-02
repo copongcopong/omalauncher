@@ -25,6 +25,8 @@
     <string name="settings_needs_linux">perlu linux</string>
     <string name="settings_packages">paket</string>
     <string name="settings_packages_subtitle">instal aplikasi dan alat Linux dengan pacman dan AUR</string>
+    <string name="settings_home_app">aplikasi beranda default</string>
+    <string name="settings_home_app_subtitle">jadikan Omalauncher layar utama kamu · pintasan aplikasi memerlukannya</string>
     <string name="settings_local_network">jaringan lokal</string>
     <string name="settings_local_network_subtitle">izinkan widget dan linux mengakses printer, home assistant, …</string>
     <string name="settings_android">setelan android</string>
