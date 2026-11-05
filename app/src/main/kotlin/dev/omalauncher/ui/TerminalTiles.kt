@@ -302,7 +302,6 @@ class TerminalTiles(
          */
         internal fun typingBounds(
             fieldFocused: Boolean,
-            browserFocused: Boolean,
             tile: Rect?,
             surface: Rect?,
         ): Rect? = if (fieldFocused) tile else surface?.let { tile ?: it }

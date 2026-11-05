@@ -225,7 +225,6 @@ private fun DesktopScreen(
     // The bar and the panel above it; the keyboard lifts both. Nothing here takes touches while the panel is closed,
     // except the bar. A phone's landscape folds them into a rail beside the grid, and unfolds them over it, centered.
     // A widget holding the screen still leaves the bar and the strip drawn and unopenable: they aren't the surface in use.
-    val locked = runtime.terminals.locked
     val side = homeSide()
     if (side != null && !panelShown) {
         if (!runtime.terminals.typing) {
@@ -292,12 +291,7 @@ private fun DesktopScreen(
     PulledPanel(runtime, state)
     // Full-screen panels draw over the bar.
     ThemesOverlay(runtime, state)
-    FileErrors(
-        listOf(
-            StyleStore.FILE to runtime.style.errors,
-            HomeStore.FILE to runtime.widgets.home.errors,
-        ) + runtime.gestureProblems(),
-    )
+    FileErrors(listOf(StyleStore.FILE to runtime.style.errors, HomeStore.FILE to runtime.widgets.home.errors) + runtime.gestureProblems())
 }
 
 /**
