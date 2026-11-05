@@ -224,6 +224,7 @@ private fun DesktopScreen(
     }
     // The bar and the panel above it; the keyboard lifts both. Nothing here takes touches while the panel is closed,
     // except the bar. A phone's landscape folds them into a rail beside the grid, and unfolds them over it, centered.
+    // A widget holding the screen still leaves the bar and the strip drawn and unopenable: they aren't the surface in use.
     val side = homeSide()
     if (side != null && !panelShown) {
         if (!runtime.terminals.typing) {
@@ -276,12 +277,7 @@ private fun DesktopScreen(
                         // Swiping up from either does what it does on home, as from the dock on stock launchers.
                         // Keys go between it and home's tiles both ways, which Compose's search doesn't find (see PromptBar).
                         if (LauncherStyle.recentApps && !panelShown) {
-                            RecentStrip(
-                                runtime,
-                                handlers,
-                                Modifier.homeSwipe(runtime, state, enabled = !locked).lockedTaps(locked).focusRequester(state.stripEntry).focusGroup(),
-                                home = state.homeEntry,
-                            )
+                            RecentStrip(runtime, handlers, Modifier.homeSwipe(runtime, state, enabled = !locked).lockedTaps(locked).focusRequester(state.stripEntry).focusGroup(), home = state.homeEntry)
                         }
                         // Insets itself by the grid gap, so it lines up with the tiles and the gap still takes taps.
                         PromptBar(runtime, state, modifier = Modifier.homeSwipe(runtime, state, enabled = !locked).lockedTaps(locked))
@@ -295,12 +291,7 @@ private fun DesktopScreen(
     PulledPanel(runtime, state)
     // Full-screen panels draw over the bar.
     ThemesOverlay(runtime, state)
-    FileErrors(
-        listOf(
-            StyleStore.FILE to runtime.style.errors,
-            HomeStore.FILE to runtime.widgets.home.errors,
-        ) + runtime.gestureProblems(),
-    )
+    FileErrors(listOf(StyleStore.FILE to runtime.style.errors, HomeStore.FILE to runtime.widgets.home.errors) + runtime.gestureProblems())
 }
 
 /**

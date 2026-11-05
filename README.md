@@ -23,11 +23,10 @@
 >   `keybar.owl`, and the fork adopted it. `keys.toml` is no longer read. This fork's rows,
 >   `height` and `text` moved into the bar it ships, so a bar you hadn't edited looks the
 >   same; [docs/EXTRA-KEYS.md](docs/EXTRA-KEYS.md) says where each line went.
-> - A `Browser` node (owl 11): a web page in a tile, drawn by Android's own WebView, so it needs
->   no Linux. https only, script off unless `js: true`, two pages per widget, and a page that
->   keeps its place across tab switches.
-> - A screen lock (owl 16): a widget holds home still while it is being used, so a drag stays
->   its own. A border and a chip say so, and the chip's button always lets go.
+> - ~~A `Browser` node and a screen lock.~~ **Upstream's own since 0.19.0**: the fork sent both,
+>   [the lock](https://github.com/SimonSchubert/omalauncher/pull/254) as `lock:` on a widget or a
+>   face and [the page](https://github.com/SimonSchubert/omalauncher/pull/255) as the `Browser`
+>   node, both at owl 18. The fork's own versions are gone with its `lock(...)` action.
 > - A development browser, apart from home: `browser-dev [url|port]` in the guest opens a window
 >   that takes `http://` on this phone's loopback as well as https, and that an agent can attach
 >   to with the Chrome DevTools Protocol to look at, drive and screenshot the page. It has its own
@@ -55,19 +54,16 @@ bar over the soft keyboard ~~while an agent edits `keys.toml`~~ (the file behind
 here the date and weather, system info, Hacker News, a calendar and a battery heatmap.
 
 <p>
-  <img src="docs/fork/widget-editor.jpg" width="24%" alt="A widget's file open in the launcher's editor, with the widget list beside it and home behind">
-  <img src="docs/fork/fav-sites-menu.jpg" width="24%" alt="A Browser tile showing Hacker News, with its site menu open: hacker news, old.reddit.com, github trending, Omalauncher Z">
-  <img src="docs/fork/fav-sites-page.jpg" width="24%" alt="The same tile on old.reddit.com, with the screen lock chip above it after the page was tapped">
-  <img src="docs/fork/terminal-opacity.jpg" width="24%" alt="A terminal tile with the wallpaper showing through its background, over the koi pond widget">
+  <img src="docs/fork/widget-editor.jpg" width="32%" alt="A widget's file open in the launcher's editor, with the widget list beside it and home behind">
+  <img src="docs/fork/fav-sites-page.jpg" width="32%" alt="A Browser tile on old.reddit.com, with the screen lock chip above it after the page was tapped">
+  <img src="docs/fork/terminal-opacity.jpg" width="32%" alt="A terminal tile with the wallpaper showing through its background, over the koi pond widget">
 </p>
 
 The first is home's widgets as files, opened in the launcher's editor with the list of them
-beside it, which is what an agent edits too. The second is `44-fav-sites.owl` in the action:
-back, forward and reload on the left, a menu of sites on the right, and the pick kept across
-restarts. The third is the same tile on old.reddit.com with the screen lock chip up, because
-the page has the tile and a drag belongs to it. The fourth is `terminal.opacity` at work: foot
-draws its own background at the alpha the style file gives it, so the wallpaper and the koi
-pond behind it come through while the text stays solid.
+beside it, which is what an agent edits too. The second is a `Browser` tile on old.reddit.com
+with the lock's chip up, because the page has the tile and a drag belongs to it. The third is
+`terminal.opacity` at work: foot draws its own background at the alpha the style file gives it,
+so the wallpaper and the koi pond behind it come through while the text stays solid.
 
 ▶ **[The demo, on YouTube](https://youtube.com/shorts/D3fvVJxXpGE)**, a short screen
 recording of the fork running on the Fold.

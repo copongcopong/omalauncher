@@ -2,10 +2,7 @@ package dev.omalauncher.ui
 
 import dev.omalauncher.linux.ShellResult
 import dev.omalauncher.widgets.lang.Compiler
-import dev.omalauncher.widgets.lang.FALSE
 import dev.omalauncher.widgets.lang.Program
-import dev.omalauncher.widgets.lang.Str
-import dev.omalauncher.widgets.lang.TRUE
 import dev.omalauncher.widgets.lang.Value
 import dev.omalauncher.widgets.runtime.Services
 import dev.omalauncher.widgets.runtime.WidgetInstance
@@ -16,7 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** A widget asking for the screen lock, and the holds it leaves behind. */
+/** A widget's `lock:`, and the holds the home screen keeps from it. */
 class ScreenLockTest {
     /** A widget's services with nothing behind them; one that only runs actions never asks for the rest. */
     private class NoServices : Services {
@@ -46,7 +43,6 @@ class ScreenLockTest {
 
         override fun android(name: String): Value = error("no android")
 
-        // lock() is the widget's own, answered before this.
         override fun act(
             name: String,
             args: List<Value>,
@@ -69,103 +65,73 @@ class ScreenLockTest {
         ): EmbeddedBrowser = error("no browser")
     }
 
-    private fun program() =
-        Program(
-            name = "lock-test",
-            meta = emptyMap(),
-            level = Compiler.LEVEL,
-            globals = emptyList(),
-            triggers = emptyList(),
-            commands = emptyList(),
-            requires = emptyMap(),
-            needsLinux = false,
-            programs = emptySet(),
-            animated = false,
-            nodeCount = 0,
+    /** A widget whose `lock:` says [lock], with a `playing` state to hold it by. */
+    private fun widget(lock: String) =
+        WidgetInstance(
+            Compiler.compile("widget {\n meta { owl: 18 }\n state playing = false\n lock: $lock\n Button { text: \"x\"; onTap: playing = !playing }\n}"),
+            NoServices(),
+            { error(it) },
         )
 
-    /** A widget wired as the engine wires it: the hold is held by the instance that asked for it. */
-    private fun widget(
-        holds: HomeLock,
-        errors: MutableList<String>,
-    ): WidgetInstance {
-        lateinit var inst: WidgetInstance
-        inst = WidgetInstance(program(), NoServices(), { errors += it }, onLock = { on -> holds.lock(inst, on) })
-        return inst
+    /** Taps the widget's one button, which turns `playing` over. */
+    private fun WidgetInstance.toggle() = (program.root.single() as dev.omalauncher.widgets.lang.WNode.Element).handlers["onTap"]!!.run(root, emptyList())
+
+    @Test fun aWidgetHoldsItWhileItsLockSaysSo() {
+        val w = widget("playing")
+        assertFalse(w.holdsHome())
+        w.toggle()
+        assertTrue(w.holdsHome())
+        w.toggle()
+        assertFalse(w.holdsHome())
+        // An expression like any other: a game holds the screen while it runs and not while it's paused.
+        val v = widget("playing && 1 > 0")
+        v.toggle()
+        assertTrue(v.holdsHome())
     }
 
-    private fun WidgetInstance.lock(on: Value) = act("lock", listOf(on))
+    @Test fun aWidgetWithoutALockNeverHoldsIt() {
+        val w = WidgetInstance(Compiler.compile("widget {\n Text { text: \"x\" }\n}"), NoServices(), { error(it) })
+        assertFalse(w.holdsHome())
+    }
 
     @Test fun twoWidgetsHoldItAndOneLettingGoKeepsItHeld() {
         val holds = HomeLock()
-        val errors = ArrayList<String>()
-        val a = widget(holds, errors)
-        val b = widget(holds, errors)
-        assertFalse(holds.locked)
-
-        a.lock(TRUE)
-        b.lock(TRUE)
-        a.lock(FALSE)
+        val a = Any()
+        val b = Any()
+        val both = setOf(a, b)
+        holds.widgets(both, both)
         assertTrue(holds.locked)
-
-        b.lock(FALSE)
-        assertFalse(holds.locked)
-        assertTrue(errors.toString(), errors.isEmpty())
-    }
-
-    @Test fun askingTwiceIsAskingOnce() {
-        val holds = HomeLock()
-        val w = widget(holds, ArrayList())
-        w.lock(TRUE)
-        w.lock(TRUE)
-        w.lock(FALSE)
-        assertFalse(holds.locked)
-    }
-
-    @Test fun theArgumentIsCoercedLikeAnyOtherBoolean() {
-        val holds = HomeLock()
-        val w = widget(holds, ArrayList())
-        w.lock(Str("editing"))
+        holds.widgets(both, setOf(b))
         assertTrue(holds.locked)
-        w.lock(Str(""))
+        holds.widgets(both, emptySet())
         assertFalse(holds.locked)
     }
 
-    @Test fun aStoppedWidgetGivesBackOnlyItsOwnHold() {
+    @Test fun backOrTheCueLetsGoUntilTheLockTurnsFalse() {
         val holds = HomeLock()
-        val errors = ArrayList<String>()
-        val a = widget(holds, errors)
-        val b = widget(holds, errors)
-        a.lock(TRUE)
-        b.lock(TRUE)
-
-        a.stop()
-        assertTrue(holds.locked)
-
-        b.stop()
-        assertFalse(holds.locked)
-        assertTrue(errors.toString(), errors.isEmpty())
-    }
-
-    @Test fun theCuesButtonGivesBackEveryHold() {
-        val holds = HomeLock()
-        val a = widget(holds, ArrayList())
-        val b = widget(holds, ArrayList())
-        a.lock(TRUE)
-        b.lock(TRUE)
-
+        val game = Any()
+        val showing = setOf(game)
+        holds.widgets(showing, showing)
         holds.unlockAll()
         assertFalse(holds.locked)
-        // A widget that asks again after the cue is honoured as before.
-        a.lock(TRUE)
+        // Its lock still says true: the person let go of it, so it stays let go.
+        holds.widgets(showing, showing)
+        assertFalse(holds.locked)
+        // Turned false and back, as the next game starts: it holds again.
+        holds.widgets(showing, emptySet())
+        holds.widgets(showing, showing)
         assertTrue(holds.locked)
     }
 
-    @Test fun aPreviewSaysItHasNoHomeScreenToLock() {
-        val errors = ArrayList<String>()
-        // No onLock: a preview has no home to hold.
-        val w = WidgetInstance(program(), NoServices(), { errors += it })
-        w.lock(TRUE)
-        assertEquals(listOf("a preview has no home screen to lock"), errors)
+    @Test fun aPageTurnedAwayFromAndBackDoesntLockAgain() {
+        val holds = HomeLock()
+        val game = Any()
+        val showing = setOf(game)
+        holds.widgets(showing, showing)
+        holds.unlockAll()
+        // Out of sight, its lock isn't seen false: still let go when its page shows again, while the game still runs.
+        holds.widgets(emptySet(), emptySet())
+        holds.widgets(showing, showing)
+        assertFalse(holds.locked)
     }
 }

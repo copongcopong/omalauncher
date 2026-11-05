@@ -90,6 +90,7 @@ import dev.omalauncher.ui.allApps
 import dev.omalauncher.ui.appIconOf
 import dev.omalauncher.ui.open
 import dev.omalauncher.ui.recentApps
+import dev.omalauncher.widgets.runtime.AirPods
 import dev.omalauncher.widgets.runtime.Alarm
 import dev.omalauncher.widgets.runtime.Media
 import dev.omalauncher.widgets.runtime.Modes
@@ -181,6 +182,8 @@ class WidgetServices(
     private val alarm = Alarm(context)
     private val modes = Modes(context)
     private val sim = Sim(context)
+    /** android.airpods and airpods(...); each activity that shows widgets lets it ask for Bluetooth while it's in front. */
+    val airpods = AirPods(context, scope)
     private val panels = SystemPanels(context)
 
     /** Opens launcher screens ("style" or "themes", "agents", "drawer"); set by the UI. */
@@ -227,6 +230,7 @@ class WidgetServices(
             "alarm" -> alarm.value()
             "modes" -> modes.value()
             "sim" -> sim.value()
+            "airpods" -> airpods.value()
             "apps" -> apps()
             "agents" -> agents()
             "recent" -> recent()
@@ -249,6 +253,9 @@ class WidgetServices(
             "alarm" -> alarm.updates()
             "modes" -> modes.updates()
             "sim" -> sim.updates()
+            "location" -> runtime.location.updates()
+            "calendar" -> runtime.calendar.updates()
+            "airpods" -> airpods.updates()
             // Both read Compose state: the app list and its usage, the installed agents and the one picked.
             "apps" -> snapshotFlow { apps() }
             "agents" -> snapshotFlow { agents() }
@@ -349,6 +356,7 @@ class WidgetServices(
         fontSize: Double?,
     ) = runtime.terminals.create(command, fontSize)
 
+    /** A page for a Browser node: the tile draws it, so nothing runs until it shows. */
     override fun browser(
         url: String?,
         js: Boolean,
@@ -663,6 +671,15 @@ class WidgetServices(
             "typeText" -> return runtime.keyboard.type(arg)
             "latch" -> return runtime.keyboard.latch(arg, args.getOrNull(1).textOrNull())
             "pickImages" -> return runtime.keyboard.pickImages()
+            // Nothing to refresh: the source follows the grant itself.
+            "location" -> return runtime.location.request()
+            "calendar" ->
+                return when {
+                    arg == "request" -> runtime.calendar.request()
+                    // An event still loading (…) would open today instead.
+                    args.getOrNull(1) == Null -> Unit
+                    else -> runtime.calendar.open(args.getOrNull(1))
+                }
         }
         when (name) {
             // Named after the command (btop, dua, ...) unless the widget passes a name.
@@ -679,6 +696,7 @@ class WidgetServices(
             "copy" -> copy(arg)
             "notify" -> notify(arg, args.getOrNull(1).textOrNull())
             "torch" -> modes.torch(args[0])
+            "airpods" -> airpods.control(arg, args.getOrNull(1))
             // Notification access lets the launcher switch it; without it, the setting that grants it. Granted but not
             // bound yet: Android's own DND setting this time, while the listener binds again for the next tap.
             "dnd" ->

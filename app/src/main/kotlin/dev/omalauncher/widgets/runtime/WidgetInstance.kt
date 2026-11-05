@@ -26,8 +26,8 @@ import androidx.compose.ui.graphics.toArgb
 import dev.omalauncher.linux.ShellResult
 import dev.omalauncher.theme.Setting
 import dev.omalauncher.theme.Style
-import dev.omalauncher.ui.EmbeddedBrowser
 import dev.omalauncher.ui.EmbeddedTerminal
+import dev.omalauncher.ui.EmbeddedBrowser
 import dev.omalauncher.ui.LauncherStyle
 import dev.omalauncher.ui.Palette
 import dev.omalauncher.widgets.HTTP_TOO_BIG
@@ -47,6 +47,7 @@ import dev.omalauncher.widgets.lang.Obj
 import dev.omalauncher.widgets.lang.TRUE
 import dev.omalauncher.widgets.lang.FALSE
 import dev.omalauncher.widgets.lang.Program
+import dev.omalauncher.widgets.lang.ASKS
 import dev.omalauncher.widgets.lang.SPEECH_ANYWHERE
 import dev.omalauncher.widgets.lang.Sprite
 import dev.omalauncher.widgets.lang.Str
@@ -224,11 +225,6 @@ class WidgetInstance(
     private val secretFile: File? = null,
     /** screen() and close(): opens or closes the widget's screen { }. */
     private val onScreen: (Boolean) -> Unit = {},
-    /**
-     * lock(true) and lock(false): holds the home screen still while the widget is being used, or lets it go. Null
-     * where there is no home to hold, as in a preview, which is told so rather than failing quietly.
-     */
-    private val onLock: ((Boolean) -> Unit)? = null,
     /** Linux is installed and running; `optional` sources wait for it. Snapshot state. */
     private val linux: () -> Boolean = { true },
     /** An app's window or the widget's screen is showing. Snapshot state. */
@@ -570,11 +566,6 @@ class WidgetInstance(
             onScreen(name == "screen")
             return
         }
-        if (name == "lock") {
-            val hold = onLock ?: return report(NO_HOME_TO_LOCK)
-            hold(args.firstOrNull()?.truthy == true)
-            return
-        }
         if (name == "sound") {
             args.firstOrNull().textOrNull()?.let { sound(it) }
             return
@@ -592,14 +583,16 @@ class WidgetInstance(
         }
         // An agent or an app opening on its own, from a timer or a fetched value, over whatever the user is doing: like
         // sound(...), a trigger does it only while the app or screen is open.
-        if ((name == "ask" || name == "open") && inTrigger && !foreground()) return report("$name(...) in a trigger works only while the app or screen is open")
+        val key = args.firstOrNull().textOrNull()
+        if ((name == "ask" || name == "open" || (name == "calendar" && key == "open")) && inTrigger && !foreground()) return report("$name(...) in a trigger works only while the app or screen is open")
         // Keys go to whatever window has the keyboard: only from a touch, never on a timer or a fetched value. Or from
         // what the user just said, to this widget's dictation a tap started: on said.final { typeText(value) }.
         if ((name == "pressKey" || name == "typeText" || name == "latch") && inTrigger && !byDictation) {
             return report("$name(...) works in handlers like onPress, or in on said.final for what android.speech heard, not in another trigger")
         }
         if (name == "pickImages" && inTrigger) return report("pickImages() works in onTap, not in a trigger")
-        val key = args.firstOrNull().textOrNull()
+        // A permission dialog, like the microphone's, only for a touch.
+        if (name in ASKS && key == "request" && inTrigger) return report("$name(\"request\") works in onTap, not in a trigger")
         // The microphone, like the keys, only from a touch; stopping it from anywhere.
         if (name == "speech" && inTrigger && key !in SPEECH_ANYWHERE) return report("speech(\"$key\") works in onTap, not in a trigger")
         if (name == "speech") return key?.let { services.speech(this, it) } ?: Unit
@@ -1196,6 +1189,9 @@ class WidgetInstance(
     /** Whether a face or an app keeps the status bar over it now: its `statusBar`, true unless it says otherwise. */
     fun showsStatusBar() = program.statusBar?.let { eval(it, root, "statusBar").truthy } ?: true
 
+    /** Whether a widget or a face holds the home screen still now: its `lock`, false unless it says otherwise. */
+    fun holdsHome() = program.lock?.let { eval(it, root, "lock").truthy } == true
+
     /** Whether an app's Back goes up a level inside it now, because its `back` holds. */
     fun canGoUp() = program.back?.let { eval(it, root, "back").truthy } == true
 
@@ -1236,11 +1232,11 @@ class WidgetInstance(
     private val terminals = HashMap<Any, EmbeddedTerminal>()
 
     /**
-     * Browser nodes' pages, by node, the one asked for longest ago first. They keep their page while
-     * the tile is off screen, and end with the widget, when their url, script or zoom changes, or when
-     * a new page needs the room: a widget keeps at most [MAX_BROWSERS] of them alive.
+     * Browser nodes' pages, by node. They keep their page while the tile is off screen, and end with the widget or when
+     * their url, script or zoom changes. Two at most: the compiler allows two Browsers in a file, never in a `for` or a
+     * component, so each node has one page.
      */
-    private val browsers = LinkedHashMap<Any, EmbeddedBrowser>(4, 0.75f, true)
+    private val browsers = HashMap<Any, EmbeddedBrowser>()
 
     fun terminal(
         node: Any,
@@ -1257,21 +1253,9 @@ class WidgetInstance(
         js: Boolean,
         zoom: Double,
     ): EmbeddedBrowser {
-        // Asked for again, so it's the last to give way to a new page.
         browsers[node]?.let {
             if (it.url == url && it.js == js && it.zoom == zoom) return it
             it.close()
-            browsers.remove(node)
-        }
-        // A new page over the limit ends the one asked for longest ago, so a component shown twice or a
-        // `for` over a list can't pile up web views. The node asking for one is never the one that goes.
-        var ended = false
-        while (browsers.isNotEmpty() && browsers.size >= MAX_BROWSERS) {
-            browsers.remove(browsers.keys.first())?.close()
-            ended = true
-        }
-        if (ended) {
-            report("a widget holds $MAX_BROWSERS Browser pages at once, each a web view of its own: the one asked for longest ago was closed to make room; show another page by setting a Browser's url instead")
         }
         return services.browser(url, js, zoom).also { browsers[node] = it }
     }
@@ -1284,8 +1268,6 @@ class WidgetInstance(
 
     fun stop() {
         services.sound(this, null, null)
-        // A hold on the home screen ends with the widget that asked for it, not left for no one to release.
-        onLock?.invoke(false)
         jobs.forEach { it.cancel() }
         jobs.clear()
         terminals.values.forEach { it.close() }
@@ -1432,9 +1414,6 @@ class WidgetInstance(
         /** Distinct sprites kept per widget. */
         private const val MAX_SPRITES = 64
 
-        /** Browser pages alive at once: each is a web view of its own, and two is as many as a phone can carry. */
-        private const val MAX_BROWSERS = 2
-
         /** How soon a failed http fetch is tried again, if its interval is longer. */
         private const val RETRY_MS = 30_000L
 
@@ -1445,9 +1424,6 @@ class WidgetInstance(
 
 /** A request that failed, for a report: its status, or that it never got one. */
 private fun httpFailure(r: ShellResult) = "${if (r.code > 0) "HTTP ${r.code}" else "request failed"}: ${r.err}"
-
-/** What `lock(...)` says where no home screen is there to hold: a preview draws the widget on its own. */
-internal const val NO_HOME_TO_LOCK = "a preview has no home screen to lock"
 
 /** A command that failed, for a report: its exit code and the first lines it printed to stderr. */
 private fun commandFailure(r: ShellResult) = "exit ${r.code}: ${r.err.lines().take(3).joinToString(" / ")}"

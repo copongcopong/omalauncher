@@ -36,4 +36,4 @@ file only this phone runs, `owl: 12` is fine; for the store, a lower level reach
 - **15**: a panel's `keyboard`, `pickImages`, `android.speech` and `speech`, `android.power`, and `launcher("page:N")`, which older launchers ignore
 - **16**: `strings { }` and `str`, and `lang()`
 - **17**: `onPull`, `pin:` on `http`, `post` and `ws`, `ws`, `send` and `on … each`
-- **18**: `lock`, which holds the home screen still while a widget is used (this fork's)
+- **18**: `Input`'s `lines`, a widget's or a face's `lock:`, `Browser`, `web`, and the page's `onNavigate`, `onTitle` and `onProgress`, `android.location` and `location`, `android.airpods` and `airpods`, and `android.calendar` and `calendar`
