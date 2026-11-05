@@ -1,24 +1,18 @@
 # Sending the fork's additions upstream: two pull requests
 
-Status: the lock is **in**. #254 was squashed onto upstream's `main` as `d7c52cb`, then reworked in
+Status: **both are in, and this document is history.** #254 became `d7c52cb` and was reworked in
 `ead79c0` into a `lock:` property rather than the `lock(...)` action, so a widget cannot forget to
-let go or believe it still holds a screen the chip freed. Bare `lock: true` doesn't compile. Owl 18
-also carries `Input`'s `lines`, which landed just before.
+let go or believe it still holds a screen the chip freed. Bare `lock: true` doesn't compile. #255's
+Browser node landed at owl 18 too, and upstream 0.19.0 (versionCode 30, 2026-11-04) ships both with
+the fork's files: `ui/BrowserView.kt`, `ui/LockCue.kt`, `docs/browser.md` and the tests.
 
-The Browser is [#255](https://github.com/SimonSchubert/omalauncher/pull/255) on
-`feat/browser-node`, open for review at owl 18 since 18 isn't released. It was reviewed on an
-emulator and rebased onto `ead79c0`: the level moved from 19 into 18, another app's link opens only
-on a gesture in the page, Back takes the page's history first, and the fork's leftovers are out of
-the docs and the examples. The branch lives in the fork's repo; `main` here keeps only the fork.
+What that means for the fork's `main`: since the 0.19.0-z sync it keeps none of the two. Its
+`lock(...)` action is gone in favour of `lock:`, and its own Browser examples with it. `docs/FORK.md`
+says what is left.
 
-Numbers below are against upstream 0.18.0, versionCode 29, owl 17, which is where
-`sync/upstream-018` left the fork's own main. The fork is at owl 18, because its lock took that
-level. CI on a pull request shows `action_required` until a maintainer approves a first-time
-contributor's run, so a green check may never appear here.
-
-The fork has four additions upstream has none of: the `Browser` node, the screen lock, the
-terminal's opacity and BrowserDev. This document is the plan for the first two, sent as two pull
-requests rather than one, and for the order between them.
+The fork had four additions upstream had none of: the `Browser` node, the screen lock, the
+terminal's opacity and BrowserDev. This was the plan for the first two, sent as two pull requests
+rather than one, and for the order between them.
 
 ## Why two, and why the lock first
 

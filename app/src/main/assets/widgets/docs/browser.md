@@ -2,15 +2,13 @@
 
 Part of the widget docs: README.md, one folder up, comes first, and paths here are from the widgets folder.
 
-A web page inside the tile, drawn by Android's own WebView, so it needs no Linux (owl 11, and this
-fork's: an upstream launcher reading such a file says `Browser` isn't a node rather than a version
-error):
+A web page inside the tile, drawn by Android's own WebView, so it needs no Linux (owl 18):
 
 ```owl
 widget "lobsters" {
   size: 6x4
   padding: 0
-  meta { owl: 11 }
+  meta { owl: 18 }
   state title = ""
   Column {
     Row {
@@ -29,7 +27,8 @@ widget "lobsters" {
   out where it starts and put the part that changes through `enc()`. A link in the page that goes to one of
   those loads nothing; `tel:` and `mailto:` open the app for them, as `url(...)` does. The store lists the
   page as `browser GET https://…`, the way it lists an image.
-- Script is off unless the node says `js: true`, and DOM storage comes with it. A page gets no JavaScript
+- Script is off unless the node says `js: true`, and DOM storage comes with it. Many sites need it: one
+  behind a bot check ("making sure you're not a bot") never gets past it without script. A page gets no JavaScript
   bridge, can't reach this phone's files or a `content://` provider, opens no second window, and plays no
   sound before a tap. An https page can't pull in `http://` either.
 - `zoom` is the page's text size, 1 by default and kept between 0.5 and 3.
@@ -41,9 +40,14 @@ widget "lobsters" {
   `onProgress` how much has loaded, 0 to 1.
 - `web("back")` steers it, and so do `"forward"`, `"reload"` and `"stop"`. A handler names no node, so
   `web(...)` steers every Browser in the file.
-- Two Browsers at most in a file: each is a web view of its own, and a tile has room for two.
+- Two Browsers at most in a file: each is a web view of its own, and a tile has room for two. A Browser
+  goes on a widget's tile or a face, not in a `screen { }`, an app, a panel or the key bar, and not inside
+  a `for` or a component: its page belongs to the node, so copies would close each other's. To show one of
+  several pages, let a state choose the url: `url: tab == "news" ? "https://lobste.rs/" : "https://example.com/"`.
+- `web(...)` in a file without a Browser doesn't compile.
 - The page keeps its place while the tile is off screen. It starts again when its `url`, `js` or `zoom`
-  changes, and ends with the widget.
+  changes, and ends with the widget. Out of sight its animations and media wait, and while the launcher
+  is behind another app or the screen is off its script waits too.
 - Browser tiles aren't previewed; `owl-check` says so in place of a picture.
 - Every Browser in the launcher shares one WebView profile, so signing in in one signs in the rest, and
   what one page keeps in cookies the others can read.
@@ -53,7 +57,7 @@ sight keeps its page where it was:
 
 ```owl
 face "work" {
-  meta { owl: 11 }
+  meta { owl: 18 }
   state tab = "shell"
   Column {
     Row {
@@ -73,11 +77,8 @@ face "work" {
 }
 ```
 
-`examples/45-browser.owl` and `examples/46-browser-tabs.owl` are those two, ready to move up into
-`widgets/` and use. `examples/44-fav-sites.owl` is a third: a page with a menu of sites in its
-toolbar (Hacker News, old.reddit.com, GitHub trending, this fork's repo) which remembers the one
-picked across restarts.
+`examples/46-browser.owl` is the first one with back, forward and reload, ready to move up into
+`widgets/` and use.
 
-Working on a page that is served from this phone is the launcher's `browser-dev` command in Arch, not a
-widget: it opens a window of its own that takes `http://` on loopback and can be attached to with the
-Chrome DevTools Protocol. A tile's page never gets either, which is why the two are separate.
+A tile's page is deliberately closed to a developer: no `http://`, no debugging socket. Working on a
+page served from this phone wants the opposite of both, and that is not this node's job.

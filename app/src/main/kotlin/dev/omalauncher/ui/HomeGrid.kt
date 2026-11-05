@@ -766,7 +766,6 @@ internal fun HomeGrid(
                 // and composing that one, a face's shaders drawn with it, held up the swipe's first frames. Their animated
                 // widgets wait until some of the page shows.
                 val homeCovered = LocalHomeCovered.current
-                // A widget's lock holds the pages still, as it does the swipe up.
                 HorizontalPager(pager, Modifier.fillMaxSize(), beyondViewportPageCount = 2, key = { slots.getOrNull(it)?.first() ?: -it }, userScrollEnabled = !locked) { slot ->
                     val shown = pagesAt(slot, slots)
                     val g = gridFor(shown, grid to wide)

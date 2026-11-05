@@ -45,20 +45,22 @@ and then in the files for the other five languages beside it (`values-in`, `valu
 `values-pt`, and since 0.17.0 `values-de` and `values-zh`). Widget-side text goes in the file's
 own `strings { }` the same way.
 
-Two files this document used to call the fork's own are shared ground now. `TerminalTiles.kt`
+Every file this document used to call the fork's own is shared ground now. `TerminalTiles.kt`
 conflicts because upstream gave terminals a translucent window for widgets' glass and the keys
 their hand-back; `HomeGrid.kt` conflicts because upstream moved a tile into `HomeTile` and makes
-the pages either side of the one showing. `BrowserView.kt` and `LockCue.kt` are still untouched
-upstream and merge cleanly.
+the pages either side of the one showing. `BrowserView.kt`, `LockCue.kt`, `docs/browser.md`,
+`ScreenLockTest.kt`, `TileLiftTest.kt` and `WidgetInstanceBrowserTest.kt` came back as upstream's
+after #254 and #255, so a sync takes upstream's copy of them rather than merging.
 
-Check the language level first when a sync starts. Upstream and the fork have collided three
+Check the language level first when a sync starts. Upstream and the fork have collided four
 times: see [Owl levels](#owl-levels).
 
 After the merge: bump `versionName` to `<upstream>-z` and `versionCode` to upstream's plus one,
 add a `CHANGELOG.md` section at the top, and update this file.
 
 Syncs so far, each its own branch and PR: `sync/upstream-011`, `sync/upstream-012`,
-`sync/upstream-016` (0.14.0 to 0.16.0 together) and `sync/upstream-018` (0.17.0 and 0.18.0).
+`sync/upstream-016` (0.14.0 to 0.16.0 together), `sync/upstream-018` (0.17.0 and 0.18.0) and
+`sync/upstream-019` (0.19.0, the sync that gave the fork's two features back to upstream).
 
 One check on 0.18.0-z is red for a reason outside the merge: upstream's `main` fails lint with
 `Previews.kt:142: Error: Statement must run from @WorkerThread ... [ThreadConstraint]`, from its
@@ -78,32 +80,25 @@ either works or is rejected cleanly. Numbers are global, so two features cannot 
 
 | level | whose | what |
 |---|---|---|
-| 11 | shared | upstream's panels, `android.drawer`, `appAction`, `workApps`, `shortcuts`, lazy Columns and Grids, `Image.label`, `Text.minLines`, `chunk`, `rank`, `strongMatch`, app `statusBar`; the fork's `Browser` node and `web(...)` |
+| 11 | upstream | panels, `android.drawer`, `appAction`, `workApps`, `shortcuts`, lazy Columns and Grids, `Image.label`, `Text.minLines`, `chunk`, `rank`, `strongMatch`, app `statusBar` |
 | 12 | upstream | `screenTop`, how much of an app's top a camera cutout covers; `keybar "…" { }` files, `pressKey`, `typeText`, `latch`, `keybar.gaps-out` and `keybar.border-width` |
 | 13 | upstream | the phone's own controls: `settings`, `dnd`, `torch(level)`, `volume`'s stream, `notification("clear")`/`"action"`/`"reply"`/`"snooze"`/`"snoozeAll"`/`"unsnooze"`/`"unsnoozeAll"`, `drag` and `onDragEnd`, `android.network`, `android.sim`, a panel's `opacity`, `animate offset`, `tileOpacity` and `tileFrost` |
 | 14 | upstream | a face's `edge: true`, with `screenTop`, `screenLeft` and `screenRight` in a face; `ripple: false` |
 | 15 | upstream | a panel's `keyboard: false`, for a drawer that leaves the soft keyboard down; `pickImages`, `android.speech` and `speech`, `android.power`, `launcher("page:N")` |
 | 16 | upstream | `strings { }` and `str`, and `lang()` |
 | 17 | upstream | `onPull`, `pin:` on `http`, `post` and `ws`, `ws`, `send` and `on … each` |
-| 18 | fork | `lock(true)` and `lock(false)` |
+| 18 | upstream | `Input`'s `lines`, a widget's or a face's `lock:`, `Browser`, `web(...)` and the page's `onNavigate`, `onTitle` and `onProgress`, `android.location` and `location`, `android.airpods` and `airpods`, `android.calendar` and `calendar` |
 
-Level 13 was the fork's for one release (0.11.0-z) and is upstream's since 0.12.0, which took it
-for the control center's phone controls. The lock moved to 14 in the 0.12.2-z sync, which cost
-nothing: upstream used 14 for `ripple: false` and took it back before releasing. It moved again to
-16 in the 0.13.0-z release, because upstream shipped 14 for a face's edge and 15 for a panel's
-keyboard in the same release, and to 18 in the 0.16.0-z release, because upstream took 16 for
-`strings { }` and 17 for WebSockets, `pin:` and `onPull`.
+The fork has no level of its own since the 0.19.0-z sync. The two it had were sent upstream and
+came back as upstream's own: `Browser` was the fork's at 11, then at 18 when the lock needed the
+same gating, and the lock was 13, then 14, 16 and 18 as upstream filled the levels under it.
+Both landed at owl 18 on 2026-11-04, the lock as a `lock:` on a widget or a face rather than the
+fork's `lock(...)` action, so a widget file written for the fork's lock says `lock: true` (or
+whatever it held as true) instead of calling it.
 
-Each move means a file written for the lock needs its `meta { owl: N }` raised: 13 for the first
-release, 14 for the second, 16 for the third, 18 now. There was no way to keep 14, since an
-upstream launcher at 14 accepts the level and then fails on `lock`, which is a worse message than
-a version error.
-
-Level 11 is deliberately shared. `Browser` shipped at 11 before upstream took 11 for panels, and
-moving it would break widgets already written for it, so the fork keeps it there. This
-launcher supports both features at 11. An upstream launcher reading a Browser file accepts the
-level and then says `Browser` is not a node, which is a worse message than a version error but
-not a silent failure.
+A file written for the fork's 13 or 14 keeps working on an old fork build and says `update the
+launcher` on this one. That is the cost of the fork not owning a number, and the reason to take
+the next free one only for something that cannot be expressed in what upstream has.
 
 Give any new fork feature the next free number, and check upstream's `LEVEL` before choosing
 one.
@@ -144,118 +139,51 @@ This is the one fork feature upstream has taken over the same ground as, so it i
 drop from any upstream conversation: a PR for `terminal.opacity` or the ⌨ button stays as it was,
 there is nothing to send for the bar.
 
-### Browser node
+### Sent upstream: the Browser node and the screen lock
 
-A web page in a tile, drawn by Android's System WebView, so it needs no Linux. Owl 11.
+Both were the fork's and are upstream's since 0.19.0, as
+[#254](https://github.com/SimonSchubert/omalauncher/pull/254) and
+[#255](https://github.com/SimonSchubert/omalauncher/pull/255). Nothing of them is kept here: the
+files this document used to list as the fork's (`ui/BrowserView.kt`, `ui/LockCue.kt`,
+`docs/browser.md`, `ScreenLockTest.kt`) are upstream's now, and the sync took upstream's copies.
 
-```owl
-Browser { url: "https://lobste.rs/"; js: true; zoom: 0.9; weight: 1
-  onNavigate: url = value; onTitle: title = value; onProgress: p = value }
-```
-
-`url` is https only, at a host written in the file, with values through `enc()`. `js` is off
-unless set, and DOM storage follows it. There is no JavaScript bridge, no file or content
-access, no geolocation, no second window, no mixed content and no third-party cookies. `web`
-takes `back`, `forward`, `reload` or `stop` and steers every page in the file. A widget holds
-two pages at most; the compiler counts the nodes and `WidgetInstance` evicts the page asked for
-longest ago.
-
-The store classifies a Browser widget as not needing Linux, and previews are skipped with a
-message rather than a blank picture.
-
-Files: `ui/BrowserView.kt`, the `Render.kt` arm, `WidgetInstance.browser`, the store's
-`Catalog`, and owl's `Schema`, `Compiler`, `Builtins`.
-
-Examples: `assets/widgets/examples/45-browser.owl`, `44-fav-sites.owl` and `46-browser-tabs.owl`.
-
-Plan and decisions: `docs/BROWSER-NODE-PLAN.md`.
-
-### BrowserDev, a page for working on
-
-A tile's page is deliberately deaf: https at a host written in the file, nothing outside the
-launcher can steer it, and no debug socket. Working on a site served from the guest wants the
-opposite of all three, so it gets a window of its own instead of an option on the node.
-
-`browser-dev [url|port]` in the guest opens `BrowserDevActivity` at a URL, a bare port meaning
-`http://127.0.0.1:<port>/`. It takes any https page and `http://` only on this phone's loopback,
-which the guest shares, and refuses `file:`, `content:`, `javascript:` and `data:`. It runs in
-`android:process=":dev"` with `WebView.setDataDirectorySuffix("dev")`, and
-`setWebContentsDebuggingEnabled(true)` there, so an agent attaches with the Chrome DevTools
-Protocol while home's WebViews stay closed to it, in release builds too. Its cookies are its own,
-and the socket dies with the window.
-
-Files: `BrowserDevActivity.kt`, the manifest's activity, `linux/OpenBridge.kt` (the shim) and
-`linux/DefaultApps.kt` (the command's name). Docs: `docs/BROWSER-DEV.md`. No owl change: it is
-not reachable from a widget file, which is the point.
-
-### Screen lock
-
-A widget holds the home screen still while it is being used: no page turn, no swipe up, no long
-press, and the prompt bar and recent strip open nothing. Owl 18.
-
-```owl
-Button { text: editing ? "done" : "draw"; onTap: { editing = !editing; lock(editing) } }
-```
-
-A focused Browser holds it by itself, since a page's drags are its own. The lock is a set of
-owners, so two widgets locking are both honoured. It ends with `lock(false)`, when the widget
-stops, through the chip, or with Back when nothing else on the tile wants it, and it is never
-persisted. The launcher draws a border and a top-centre chip whose button always works.
-
-A page's hold follows the view's focus, so a tap outside the page, including on the prompt bar,
-lets go of both.
-
-Files: `ui/TerminalTiles.kt` (the holds), `ui/Home.kt` and `ui/HomeGrid.kt` (the gates),
-`ui/Launcher.kt` (`lockedTaps`), `ui/LockCue.kt` (the cue), `widgets/runtime/WidgetInstance.kt`
-(`onLock`), and owl's `Schema` and `Builtins`.
-
-Example: `assets/widgets/examples/47-lock.owl`.
-
-Plan and decisions: `docs/SCREEN-LOCK-PLAN.md`.
+Upstream's shape differs from the fork's in one place worth knowing. The lock is a property of the
+widget or the face, `lock: mode == "play"`, read as it changes, rather than a `lock(...)` action a
+handler calls, so a widget can't forget to let go or believe it still holds a screen the chip
+freed. `docs/browser.md` and the widget README have both; `docs/BROWSER-NODE-PLAN.md` is the plan
+that became #255 and `docs/UPSTREAM-PLAN.md` is the record of the two pull requests.
 
 ### Examples and docs
 
-The fork adds `44-fav-sites.owl`, `45-browser.owl`, `46-browser-tabs.owl` and `47-lock.owl` to
-`assets/widgets/examples`, and two plan documents under `docs/`. `docs/ARCHITECTURE.md` has a
-section each for Browser tiles and the screen lock.
+The fork adds no widget examples since upstream took `46-browser.owl` and `47-lock.owl`; its own
+`44-fav-sites`, `45-browser` and `46-browser-tabs` are gone with them. What stays is
+`docs/BROWSER-DEV.md`, `docs/UPSTREAM-PLAN.md` and the plan documents upstream now carries too.
 
 ## Sending a feature upstream
 
-Two pull requests go out, the screen lock first at owl 18 and the Browser node second at 19.
-`docs/UPSTREAM-PLAN.md` is that plan: what each one carries, what stays here, why the lock has to
-come first when the Browser needs the same gating, what changes if the lock is turned down, and
-where upstream has moved under both since they landed.
+The two that were worth sending are in: the screen lock and the Browser node, merged on 2026-11-04
+as #254 and #255 and released in upstream 0.19.0. `docs/UPSTREAM-PLAN.md` is the record of how
+they went, and the shape to copy for the next one.
 
-Upstream has none of these: `terminal.opacity`, `Browser` and `lock` all read as absent from
-`upstream/main`, and the 12-column grid ships there already as a setting, so only the default
-differs. The keys bar is no longer one of them: upstream took that ground in 0.11.0 with
-`keybar.owl`, and the fork dropped its own.
+What upstream still has none of: `terminal.opacity`, BrowserDev and the ⌨ button's bottom-left
+place. The 12-column grid ships there already as a setting, so only the default differs.
 
 | feature | owl level | files it touches | how hard to port |
 |---|---|---|---|
-| screen lock | 18 in the fork, 18 to send | `TerminalTiles`, `LockCue`, `Home`, `HomeGrid`, `Launcher`, `WidgetInstance`, `WidgetEngine`, owl's `Schema`, `Builtins`, `Compiler` | medium, and it is the one that has to go first: the Browser needs its gating |
-| `terminal.opacity` | none | `theme/Style.kt`, `linux/TerminalFont.kt`, `ui/TerminalTiles.kt` | small, and smaller since upstream's window is already translucent |
-| ~~keys bar and ⌨ button~~ | ~~none~~ | ~~`ui/ExtraKeys*`, `keys.toml`, terminal windows~~ | gone: upstream's `keybar.owl` replaced it. The ⌨ button is all that is left of the fork's, and it is a one-line move |
-| Browser node | 11 in the fork, 19 to send | `ui/BrowserView.kt`, `TerminalTiles` (a focused page's hold), owl's `Schema`, `Compiler`, `Builtins`, `Program`, `Render.kt`, `WidgetInstance`, `WidgetServices`, `WidgetEngine`, `Catalog` | medium, and it goes second, once the hold it relies on is upstream's |
-| BrowserDev | none | `BrowserDevActivity.kt`, the manifest, `linux/OpenBridge.kt` | not for upstream: it answers a developer's need, not a launcher's, and a Play release has no business shipping a DevTools port |
+| `terminal.opacity` | none | `theme/Style.kt`, `linux/TerminalFont.kt`, `ui/TerminalTiles.kt`, `Runtime.kt` | small: upstream's window is already translucent, so it arrives as one command-line option |
+| ⌨ button | none | `ui/TerminalTiles.kt`, `LinuxWindowActivity.kt` | one line each, but it is a placement no PR needs |
+| BrowserDev | none | `BrowserDevActivity.kt`, the manifest, `linux/OpenBridge.kt`, `linux/DefaultApps.kt` | not for upstream: it answers a developer's need, not a launcher's, and a Play release has no business shipping a DevTools port |
 
-A picked feature goes out as one branch from `upstream/main`, not as a merge of this fork.
-Cherry-pick or copy the fork commits, then:
+What the two that landed cost, as a measure for the next one:
 
-- Take a fresh owl level. Upstream has 11 to 17 taken already, so the lock arrives at 18 and the
-  Browser at 19, and `Compiler.LEVEL`, `SINCE`, the widget README, `docs/versions.md` and
-  `LangTest` move with it. The lock has moved three times in this fork, 13 to 14 to 16 to 18,
-  which is what that costs: a widget file's level, its docs and its tests.
-- Leave out what belongs to the fork: the package name, the version suffix, this file and the
-  fork plans.
-- Re-check the parts upstream has since rewritten. The lock's prompt-bar and strip gate lives
-  in `Launcher.kt`, which upstream turned into a panel host, and home's placement now comes
-  from `layout.toml`.
-- A Browser PR needs the store to treat a page as untrusted content, so say so in the pull
-  request rather than leaving it to the reviewer to notice. A preview is skipped, and
-  `owl-check` should keep saying why.
-- Bring the tests: `LangTest` cases for the level, the arity and the constant-argument check,
-  `ScreenLockTest` for the owner accounting, and the device evidence from the plan documents.
+- The lock moved level four times here (13, 14, 16, 18) before it was upstream's, and it changed
+  shape on the way: upstream's is a `lock:` property, not an action, so the fork had to adopt that
+  and drop its own.
+- The Browser waited for the lock's gating to be upstream's, and then arrived at 18 rather than
+  a new 19, because 18 was unreleased when it went in.
+- Both came back with upstream's own edits: a Browser can't go in a `for` or a component, a page's
+  script stops while the launcher is behind another app, and a widget let go stays let go until its
+  `lock:` turns false. The sync took those, not the fork's.
 
 ## Building
 
@@ -277,12 +205,8 @@ Install on the phone from pop480 with `adb connect <phone>:<wireless port>` and
 
 ## Known gaps
 
-- The editing and arrange gate for the screen lock has not been checked on a device. A page
-  cannot be moved while locked, and the code releases the hold when `state.editing` or an open
-  folder is set, but the check itself is untested.
-- A widget's own `lock(true)` ignoring prompt-bar taps is covered by code and not by the device
-  run, because the test tile would not stay on page 1.
-- A page evicted by the two-page limit draws blank until its node asks for it again.
+- The lock and a Browser tile's gating are upstream's now and tested there; what the fork has not
+  checked on a device since 0.19.0-z is `terminal.opacity` over upstream's glass.
 - A Browser file gets no `owl-check` preview.
 - The store treats embedded web content as untrusted, and no warning is shown for it yet.
 

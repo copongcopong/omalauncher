@@ -4,6 +4,64 @@ The most important changes in each release. The Play Store notes for a release
 are in `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`.
 Dates are when the build was uploaded to Play.
 
+## 0.19.0-z (versionCode 31) – 2026-11-05
+
+Omalauncher Z on upstream 0.19.0 (versionCode 30) and its main, which published 0.13.0 through
+0.19.0: a widget can show a web page and hold the home screen still, both at owl 18, and read the
+phone's calendars, its approximate location and its AirPods. Owl 15 to 17 added dictation, the
+phone's charging current, text per language, `ws`/`send`/`on x each`, pinned certificates and a
+list pulled down past its top. Voice speaks with seven agents, the launcher's text comes in six
+languages, and a widget command that prints hundreds of megabytes no longer runs the app out of
+memory.
+
+Fork changes ([copongcopong/omalauncher](https://github.com/copongcopong/omalauncher)):
+
+- **The fork's two additions are upstream's own now.** #254 became `lock:` on a widget or a face
+  and #255 the `Browser` node, both at owl 18, so this sync drops the fork's own `lock(true)`
+  action and takes upstream's files. A widget written for the fork's lock says `lock: true` (or
+  what it held as true) instead of calling `lock(...)`; the fork's `lock.md` is gone and
+  upstream's README and `docs/browser.md` say how both work.
+- The Browser examples are upstream's one, `46-browser.owl`: the fork's `44-fav-sites`,
+  `45-browser` and `46-browser-tabs` are gone with theirs.
+- BrowserDev, `terminal.opacity`, the 12-column grid and the ⌨ button are untouched.
+- `fastlane`'s Play notes are upstream's; the fork's release notes come from its own workflow.
+
+## 0.19.0 (versionCode 30) – 2026-11-04
+
+- Browser tiles: a widget or face can show a web page in a tile of its own, drawn by
+  Android's System WebView, https only and only at hosts written in the file, script off
+  unless `js: true`. `onNavigate`, `onTitle` and `onProgress` follow the page and
+  `web("back" | "forward" | "reload" | "stop")` steers it; a page's script waits while
+  the launcher is behind another app or the screen is off (#255).
+- A widget or face can hold the home screen still with `lock: mode == "play"`: while it's
+  true the page turn, the swipe up and the long press stop, and a chip, Back or the widget
+  stopping always give the screen back (#254).
+- An `Input` takes `lines: 6`: what's typed wraps, the field grows up to that many lines and
+  then scrolls, as a chat's message box. With `onSubmit`, Enter sends and Shift+Enter starts
+  a new line (#248).
+- Widgets can show and change AirPods: owl 18's `android.airpods` has each bud's and
+  the case's battery, which buds are in, the listening mode and the settings, read
+  over the AirPods' own link as Apple's devices do, and `airpods(...)` switches
+  noise cancellation, transparency and adaptive and turns Conversation Awareness
+  and the rest on and off; `examples/airpods.owl` shows them. `airpods("request")`
+  from a tap asks for the Bluetooth permission, and only on Android 17 (16 QPR3 on a
+  Pixel), which it needs; elsewhere `supported` is false and nothing asks.
+- Widgets can know roughly where the phone is: owl 18's `android.location` gives an
+  approximate place (a kilometre or two), only once `location("request")` from a tap
+  has allowed it, and only while the widget shows. The bundled today widget has "use my
+  location" for its weather; a typed city still wins.
+- Widgets can show the phone's calendars: owl 18's `android.calendar` lists the next 14
+  days of events, local and synced, each time of a repeating one on its own, without
+  cancelled ones or those you declined, once `calendar("request")` from a tap has
+  allowed it. All-day events run midnight to midnight wherever the phone is, each event
+  has its color, and `calendar("open", e)` opens one in the calendar app.
+  `examples/calendar.owl` shows the next events.
+- Voice talks to Oh My Pi (over ACP) and Pi (over its RPC mode) too.
+- Fixes: a widget command printing hundreds of megabytes no longer runs the launcher out of
+  memory (its output stops at 4 MB); many regex matches in one widget update can't add up to
+  a freeze; Voice no longer crashes in landscape with the keyboard up; a widget's preview is
+  saved off the main thread.
+
 ## 0.18.0-z (versionCode 30) – 2026-10-30
 
 Omalauncher Z on upstream 0.18.0 (versionCode 29) and its main, which published 0.17.0 and 0.18.0

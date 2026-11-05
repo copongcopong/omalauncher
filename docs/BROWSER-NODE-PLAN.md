@@ -1,8 +1,8 @@
 # Browser node: implementation plan
 
-Status: implemented and merged in #6 (M1 to M5); M6 is partly done, and the device checks below
-are still open.
-Target: `copongcopong/omalauncher`, a new owl level (11).
+Status: implemented and merged in the fork (#6), sent upstream in this pull request. M6 is partly
+done, and the device checks below are still open.
+Target: `SimonSchubert/omalauncher`, in owl 18.
 Goal: make `Browser` a first-class OWL node, the sibling of `Terminal`, so a face can
 hold a terminal and an embedded web view in tabs on one page.
 
@@ -52,7 +52,7 @@ cleartext `http://` are blocked, and no JavaScript bridge is ever installed.
 A file may hold at most two `Browser` nodes. WebViews are expensive, a face needs one, and two
 leaves room for a spare tab. The compiler enforces it.
 
-`Browser` and its actions require owl 11, so older launchers reject such files cleanly instead
+`Browser` and its actions require owl 18, so older launchers reject such files cleanly instead
 of failing on an unknown node.
 
 ## Public API
@@ -61,7 +61,7 @@ Target use case:
 
 ```owl
 face "work" {
-  meta { owl: 11 }
+  meta { owl: 18 }
   page: -2
   requires { pacman: ["tmux"] }
 
@@ -437,14 +437,14 @@ If a static preview is wanted later, capture a bitmap from the WebView after
 
 - `app/src/main/assets/widgets/README.md`:
   - add `Browser` to the node table;
-  - add `Browser` and `web` to the owl 11 sentence;
+  - add `Browser` and `web` to the owl 18 sentence;
   - add a short "Browser" section with the properties, events, actions, HTTPS rule,
     JS-off default and max two per file;
   - note that Terminal and Browser previews are skipped;
   - add the tabbed face example above (adapted to the reader).
 - `docs/ARCHITECTURE.md`: mention that `Browser` uses Android WebView, not the Wayland
   compositor, and that `TerminalTiles` now also owns browser focus/lift.
-- `CHANGELOG.md` at release time: "owl 11: a `Browser` node, an embedded WebView for
+- `CHANGELOG.md` at release time: "owl 18: a `Browser` node, an embedded WebView for
   faces and widgets."
 - Store review: `browser GET …` appears in `Program.commands`, so the existing review
   markdown lists it. A browser is untrusted content; the store should call that out.
@@ -455,8 +455,8 @@ If a static preview is wanted later, capture a bitmap from the WebView after
 
 Language tests in `owl/src/test/kotlin/dev/omalauncher/widgets/lang/LangTest.kt`:
 
-- `Browser` without `meta { owl: 11 }` fails with a "needs owl 11" message.
-- `meta { owl: 11 }` + `Browser { url: "https://example.com" }` compiles.
+- `Browser` without `meta { owl: 18 }` fails with a "needs owl 18" message.
+- `meta { owl: 18 }` + `Browser { url: "https://example.com" }` compiles.
 - `Browser` without `url` fails with a clear message.
 - `http://`, `file://`, `javascript:` and `data:` URLs fail.
 - An interpolated URL without `enc()`/fixed host fails or warns, matching `http`.
@@ -491,7 +491,7 @@ Manual test matrix (needs a device):
 ## Milestones
 
 - [x] M1: language contract. Schema, Compiler, Program, Builtins; `LangTest`
-      passes; `owl-check` reports the node requires owl 11 and validates URLs. No
+      passes; `owl-check` reports the node requires owl 18 and validates URLs. No
       rendering yet.
 - [x] M2: render a page. `EmbeddedBrowser`, `BrowserView`, `AndroidView`,
       `WebViewClient`/`WebChromeClient`, basic settings, theme background. A widget
@@ -507,7 +507,7 @@ Manual test matrix (needs a device):
 
 ## Acceptance criteria
 
-- A face at `page: -2` can declare `meta { owl: 11 }` and hold a `Terminal` and a
+- A face at `page: -2` can declare `meta { owl: 18 }` and hold a `Terminal` and a
   `Browser` in two tabs, each full width and 60% of the screen height.
 - `Browser` works with no Linux installed.
 - Existing widgets and all current tests are unaffected.
